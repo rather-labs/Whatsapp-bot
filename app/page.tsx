@@ -1,7 +1,7 @@
-import SignEIP712 from '@/components/SignEIP712'
-import BuyTokens from '@/components/BuyTokens'
-import FundTokens from '@/components/FundTokens'
-import FundTokensCard from '@/components/FundCard'
+import SignEIP712 from '@/app/components/SignEIP712'
+import BuyTokens from '@/app/components/BuyTokens'
+import FundTokens from '@/app/components/FundTokens'
+import FundTokensCard from '@/app/components/FundCard'
 export default function Home() {
   return (
     <main>

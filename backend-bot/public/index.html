@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 5px solid #007bff;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-connected { background: #28a745; }
+        .status-disconnected { background: #dc3545; }
+        .status-qr { background: #ffc107; }
+        .status-auth { background: #17a2b8; }
+
+        .qr-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .qr-code {
+            max-width: 250px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .commands {
+            background: #e9ecef;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .commands h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .command {
+            background: white;
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 3px solid #007bff;
+        }
+
+        .command strong {
+            color: #007bff;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 WhatsApp Bot</h1>
+            <p>Real-time monitoring dashboard</p>
+        </div>
+
+        <div class="status-card">
+            <h3>Bot Status</h3>
+            <div id="status-display">
+                <span class="status-indicator status-disconnected"></span>
+                <span id="status-text">Connecting...</span>
+            </div>
+            <div id="connection-info" class="hidden">
+                <p><strong>Ready:</strong> <span id="ready-status">No</span></p>
+                <p><strong>Status:</strong> <span id="detailed-status">Disconnected</span></p>
+            </div>
+        </div>
+
+        <div id="qr-section" class="qr-container hidden">
+            <h3>📱 Scan QR Code</h3>
+            <p>Open WhatsApp on your phone and scan this QR code to connect the bot</p>
+            <img id="qr-code" class="qr-code" alt="QR Code" />
+        </div>
+
+        <div class="commands">
+            <h3>Available Commands</h3>
+            <div class="command">
+                <strong>hello</strong> / <strong>hi</strong> / <strong>hey</strong> - Greet the bot
+            </div>
+            <div class="command">
+                <strong>/help</strong> - Show all available commands
+            </div>
+            <div class="command">
+                <strong>/status</strong> - Check bot status
+            </div>
+            <div class="command">
+                <strong>/info</strong> - Get information about the bot
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; color: #666; font-size: 0.9rem;">
+            <p>💡 Send any of these commands to the bot via WhatsApp to test it!</p>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        const statusText = document.getElementById('status-text');
+        const statusIndicator = document.querySelector('.status-indicator');
+        const connectionInfo = document.getElementById('connection-info');
+        const readyStatus = document.getElementById('ready-status');
+        const detailedStatus = document.getElementById('detailed-status');
+        const qrSection = document.getElementById('qr-section');
+        const qrCode = document.getElementById('qr-code');
+
+        function updateStatus(botState) {
+            // Update status text and indicator
+            const statusMap = {
+                'disconnected': { text: 'Disconnected', class: 'status-disconnected' },
+                'qr_ready': { text: 'QR Code Ready', class: 'status-qr' },
+                'authenticated': { text: 'Authenticated', class: 'status-auth' },
+                'connected': { text: 'Connected & Ready', class: 'status-connected' },
+                'auth_failed': { text: 'Authentication Failed', class: 'status-disconnected' }
+            };
+
+            const status = statusMap[botState.status] || statusMap['disconnected'];
+            statusText.textContent = status.text;
+            
+            // Update status indicator
+            statusIndicator.className = `status-indicator ${status.class}`;
+            
+            // Show/hide connection info
+            connectionInfo.classList.remove('hidden');
+            readyStatus.textContent = botState.isReady ? 'Yes' : 'No';
+            detailedStatus.textContent = botState.status;
+            
+            // Handle QR code
+            if (botState.qrCode) {
+                qrSection.classList.remove('hidden');
+                qrCode.src = botState.qrCode;
+            } else {
+                qrSection.classList.add('hidden');
+            }
+        }
+
+        // Listen for bot state updates
+        socket.on('botState', (botState) => {
+            console.log('Bot state updated:', botState);
+            updateStatus(botState);
+        });
+
+        // Handle connection events
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            statusText.textContent = 'Server Disconnected';
+            statusIndicator.className = 'status-indicator status-disconnected';
+        });
+
+        // Initial status check
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(botState => {
+                updateStatus(botState);
+            })
+            .catch(error => {
+                console.error('Error fetching status:', error);
+                statusText.textContent = 'Error connecting to server';
+            });
+    </script>
+</body>
+</html> 
