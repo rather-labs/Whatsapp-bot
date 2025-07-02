@@ -150,6 +150,12 @@
             <h3>📱 Scan QR Code</h3>
             <p>Open WhatsApp on your phone and scan this QR code to connect the bot</p>
             <img id="qr-code" class="qr-code" alt="QR Code" />
+            <button id="regenerate-qr" style="margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; margin-right: 10px;">
+                🔄 Regenerate QR Code
+            </button>
+            <button id="clear-session" style="margin-top: 15px; padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                🗑️ Clear Session
+            </button>
         </div>
 
         <div class="commands">
@@ -183,12 +189,16 @@
         const detailedStatus = document.getElementById('detailed-status');
         const qrSection = document.getElementById('qr-section');
         const qrCode = document.getElementById('qr-code');
+        const regenerateQrBtn = document.getElementById('regenerate-qr');
+        const clearSessionBtn = document.getElementById('clear-session');
 
         function updateStatus(botState) {
             // Update status text and indicator
             const statusMap = {
-                'disconnected': { text: 'Disconnected', class: 'status-disconnected' },
+                'disconnected': { text: 'Disconnected - Reconnecting...', class: 'status-auth' },
+                'initializing': { text: 'Initializing...', class: 'status-auth' },
                 'qr_ready': { text: 'QR Code Ready', class: 'status-qr' },
+                'qr_error': { text: 'QR Code Error', class: 'status-disconnected' },
                 'authenticated': { text: 'Authenticated', class: 'status-auth' },
                 'connected': { text: 'Connected & Ready', class: 'status-connected' },
                 'auth_failed': { text: 'Authentication Failed', class: 'status-disconnected' }
@@ -229,6 +239,62 @@
             console.log('Disconnected from server');
             statusText.textContent = 'Server Disconnected';
             statusIndicator.className = 'status-indicator status-disconnected';
+        });
+
+        // Regenerate QR code button
+        regenerateQrBtn.addEventListener('click', async () => {
+            try {
+                regenerateQrBtn.textContent = '🔄 Regenerating...';
+                regenerateQrBtn.disabled = true;
+                
+                const response = await fetch('/api/regenerate-qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    console.error('Failed to regenerate QR code:', result.error);
+                }
+            } catch (error) {
+                console.error('Error regenerating QR code:', error);
+            } finally {
+                regenerateQrBtn.textContent = '🔄 Regenerate QR Code';
+                regenerateQrBtn.disabled = false;
+            }
+        });
+
+        // Clear session button
+        clearSessionBtn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to clear the session? This will force a new QR code generation.')) {
+                return;
+            }
+            
+            try {
+                clearSessionBtn.textContent = '🗑️ Clearing...';
+                clearSessionBtn.disabled = true;
+                
+                const response = await fetch('/api/clear-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    console.error('Failed to clear session:', result.error);
+                }
+            } catch (error) {
+                console.error('Error clearing session:', error);
+            } finally {
+                clearSessionBtn.textContent = '🗑️ Clear Session';
+                clearSessionBtn.disabled = false;
+            }
         });
 
         // Initial status check
