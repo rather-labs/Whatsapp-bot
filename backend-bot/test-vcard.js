@@ -15,23 +15,19 @@ const mockConnectionManager = {
   isAuthorized: () => true
 };
 
-const mockWalletService = {
-  initializeWallet: () => ({}),
-  getWallet: () => ({ balance: 1000, transactions: [] }),
+const mockBackendService = {
+  getUser: () => ({ balance: 1000, transactions: [] }),
   getBalance: () => 1000,
   hasSufficientBalance: () => true,
   addFunds: () => ({}),
   removeFunds: () => ({}),
-  transferFunds: () => ({})
-};
-
-const mockBlockchainService = {
+  transferFunds: () => ({}),
   registerUser: () => ({}),
   getServerUrl: () => 'http://localhost:3002'
 };
 
 // Create MessageHandler instance
-const messageHandler = new MessageHandler(mockConnectionManager, mockWalletService, mockBlockchainService);
+const messageHandler = new MessageHandler(mockConnectionManager, mockBackendService);
 
 console.log('🧪 Testing vCard Parsing Functionality\n');
 

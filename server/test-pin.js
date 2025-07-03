@@ -23,7 +23,7 @@ async function testPinFunctionality() {
     });
     console.log('✅ Login successful:', {
       message: loginResponse.data.message,
-      userId: loginResponse.data.user.id,
+      whatsappNumber: loginResponse.data.user.whatsapp_number,
       token: loginResponse.data.token ? 'Token received' : 'No token'
     });
 
@@ -35,7 +35,6 @@ async function testPinFunctionality() {
       headers: { Authorization: `Bearer ${token}` }
     });
     console.log('✅ Profile retrieved:', {
-      id: profileResponse.data.id,
       whatsapp_number: profileResponse.data.whatsapp_number,
       username: profileResponse.data.username,
       wallet_address: profileResponse.data.wallet_address

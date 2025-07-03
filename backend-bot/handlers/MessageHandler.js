@@ -10,10 +10,7 @@ class MessageHandler {
     const contact = await message.getContact();
     const userId = message.from;
     const whatsappNumber = userId.replace('@c.us', '');
-    
-    // Initialize user account
-    this.backendService.initializeUser(userId);
-    
+        
     console.log('message', message);
 
     // Check if message is a vCard
@@ -190,26 +187,29 @@ Features:
 • Contact management ✅
 • USDC payments ✅
 • Vault deposits ✅
-• Blockchain integration ✅
+• Backend integration ✅
 
-This bot is built with Node.js and Express, designed to provide a seamless WhatsApp experience with blockchain wallet capabilities.`;
+This bot is built with Node.js and Express, designed to provide a seamless WhatsApp experience with backend wallet capabilities.`;
   }
 
   async handleRegisterUser(whatsappNumber, contact, userId) {
     // Try to register user with backend server
-    const registration = await this.backendService.registerUser(whatsappNumber, contact.pushname);
     const user = this.backendService.getUser(userId);
-    
-    return `✅ *User Account Created Successfully!*
 
-💰 Initial Balance: 1,000 USDC
+    if (user) {
+      return `Your account is already registered!
+
+💰 Balance: ${user.balance} USDC
 📅 Created: ${user.createdAt}
-🆔 User ID: ${userId.slice(0, 8)}...
-🔗 Backend: ${registration ? 'Connected' : 'Local Only'}
+🆔 User ID: ${userId.slice(0, 8)}
+`;
+    }
+    
+    return `To register your account, tap in the link below
 
-Your account is now ready for transactions!
-Use /balance to check your balance or /help for more commands.`;
-  }
+${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=${contact.pushname}
+`;
+}
 
   handleBalance(userId) {
     const user = this.backendService.getUser(userId);

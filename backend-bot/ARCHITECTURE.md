@@ -18,19 +18,12 @@ The bot is built with a clean, modular architecture that separates concerns into
   - Session management
   - Authorization checks
 
-#### WalletService.js
-- **Purpose**: Handles all wallet-related operations
-- **Responsibilities**:
-  - Local wallet simulation
-  - Balance management
-  - Transaction tracking
-  - Fund transfers between wallets
-  - Transaction history
 
-#### BlockchainService.js
-- **Purpose**: Manages interactions with the blockchain server
+
+#### BackendService.js
+- **Purpose**: Manages interactions with the server
 - **Responsibilities**:
-  - User registration with blockchain server
+  - User registration with server
   - Profile management
   - Payment processing
   - Health checks
@@ -61,7 +54,7 @@ The bot is built with a clean, modular architecture that separates concerns into
 
 1. **Message Reception**: WhatsApp messages are received by the ConnectionManager
 2. **Message Processing**: Messages are passed to MessageHandler for processing
-3. **Service Interaction**: MessageHandler interacts with WalletService and BlockchainService as needed
+3. **Service Interaction**: MessageHandler interacts with BackendService as needed
 4. **Response Generation**: Responses are generated and sent back through the ConnectionManager
 5. **API Requests**: External API requests are handled by ApiRoutes and routed to appropriate services
 
@@ -98,8 +91,8 @@ The bot is built with a clean, modular architecture that separates concerns into
 backend-bot/
 ├── services/
 │   ├── ConnectionManager.js    # WhatsApp client management
-│   ├── WalletService.js        # Wallet operations
-│   └── BlockchainService.js    # Blockchain integration
+
+│   └── BackendService.js       # Backend integration
 ├── handlers/
 │   └── MessageHandler.js       # Message processing
 ├── routes/
@@ -126,16 +119,12 @@ backend-bot/
 - Provides real-time status updates
 - Manages QR code generation
 
-### WalletService
-- Simulates wallet operations
-- Tracks user balances and transactions
-- Handles fund transfers
-- Maintains transaction history
 
-### BlockchainService
-- Interfaces with external blockchain server
+
+### BackendService
+- Interfaces with external server
 - Handles user registration and authentication
-- Manages blockchain-based operations
+- Manages backend-based operations
 - Provides health monitoring
 
 ### MessageHandler

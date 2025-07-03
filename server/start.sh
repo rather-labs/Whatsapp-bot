@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Blockchain Server Startup Script
+# Server Startup Script
 
-echo "🚀 Starting Blockchain Server..."
+echo "🚀 Starting Server..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -45,9 +45,9 @@ fi
 echo "💾 Checking database..."
 
 # Start the server
-echo "🌐 Starting blockchain server..."
-echo "📊 Server will be available at: http://localhost:${BLOCKCHAIN_PORT:-3002}"
-echo "🔗 Health check: http://localhost:${BLOCKCHAIN_PORT:-3002}/api/health"
+echo "🌐 Starting server..."
+echo "📊 Server will be available at: http://localhost:${BACKEND_PORT:-3002}"
+echo "🔗 Health check: http://localhost:${BACKEND_PORT:-3002}/api/health"
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""

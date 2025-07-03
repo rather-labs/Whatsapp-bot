@@ -7,12 +7,12 @@ class BackendService {
   }
 
   // Register a new user with the backend server
-  async registerUser(whatsappNumber, username = null) {
+  async registerUser(whatsappNumber, username = null, pin = 1234) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/register`, {
         whatsapp_number: whatsappNumber,
         username: username,
-        password: `temp_${Date.now()}` // Temporary password
+        pin: pin
       });
       return response.data;
     } catch (error) {
@@ -22,12 +22,12 @@ class BackendService {
   }
 
   // Get user profile from backend server
-  async getUserProfile(whatsappNumber) {
+  async getUserProfile(whatsappNumber, pin = 1234) {
     try {
       // First login to get token
       const loginResponse = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/login`, {
         whatsapp_number: whatsappNumber,
-        password: `temp_${Date.now()}` // This won't work, need proper auth
+        pin: pin
       });
       
       if (loginResponse.data.token) {
@@ -83,32 +83,17 @@ class BackendService {
     }
   }
 
-  // Initialize user account
-  initializeUser(userId) {
-    if (!this.userStore.has(userId)) {
-      this.userStore.set(userId, {
-        balance: 1000, // Starting balance
-        transactions: [],
-        createdAt: new Date().toISOString()
-      });
-    }
-    return this.userStore.get(userId);
-  }
-
   // Get user balance
   getBalance(userId) {
-    const user = this.initializeUser(userId);
     return user.balance;
   }
 
   // Get user details
   getUser(userId) {
-    return this.initializeUser(userId);
   }
 
   // Add funds to user account (buy, deposit, etc.)
   addFunds(userId, amount, type = 'deposit', metadata = {}) {
-    const user = this.initializeUser(userId);
     user.balance += amount;
     user.transactions.push({
       type: type,
@@ -121,7 +106,6 @@ class BackendService {
 
   // Remove funds from user account (sell, withdraw, payment, etc.)
   removeFunds(userId, amount, type = 'withdrawal', metadata = {}) {
-    const user = this.initializeUser(userId);
     
     if (user.balance < amount) {
       throw new Error('Insufficient balance');
@@ -177,13 +161,11 @@ class BackendService {
 
   // Check if user has sufficient balance
   hasSufficientBalance(userId, amount) {
-    const user = this.initializeUser(userId);
     return user.balance >= amount;
   }
 
   // Get transaction history
   getTransactionHistory(userId, limit = 10) {
-    const user = this.initializeUser(userId);
     return user.transactions.slice(-limit);
   }
 

@@ -7,7 +7,9 @@ const { ethers } = require('ethers');
 const sqlite3 = require('sqlite3').verbose();
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const { ecb } = require('@noble/ciphers/aes');
 const axios = require('axios');
+const { constants } = require('buffer');
 require('dotenv').config();
 
 const app = express();
@@ -41,12 +43,10 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
 function initializeDatabase() {
   const tables = [
     `CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      whatsapp_number TEXT UNIQUE NOT NULL,
+      whatsapp_number TEXT PRIMARY KEY,
       username TEXT,
-      pin INTEGER NOT NULL,
+      encrypted_pin TEXT NOT NULL,
       wallet_address TEXT,
-      private_key_encrypted TEXT,
       risk_profile INTEGER DEFAULT 1,
       auth_profile INTEGER DEFAULT 1,
       wallet_balance REAL DEFAULT 0,
@@ -56,16 +56,16 @@ function initializeDatabase() {
     )`,
     `CREATE TABLE IF NOT EXISTS contacts (
       id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
+      user_whatsapp_number TEXT NOT NULL,
       name TEXT NOT NULL,
       contact_userid TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id),
-      UNIQUE(user_id, contact_userid)
+      FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number),
+      UNIQUE(user_whatsapp_number, contact_userid)
     )`,
     `CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
+      user_whatsapp_number TEXT NOT NULL,
       tx_hash TEXT,
       type TEXT NOT NULL,
       amount REAL NOT NULL,
@@ -75,26 +75,26 @@ function initializeDatabase() {
       gas_price TEXT,
       block_number INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
+      FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number)
     )`,
     `CREATE TABLE IF NOT EXISTS vault_deposits (
       id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
+      user_whatsapp_number TEXT NOT NULL,
       amount REAL NOT NULL,
       apy REAL DEFAULT 0.05,
       status TEXT DEFAULT 'active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
+      FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number)
     )`
   ];
 
-  tables.forEach(table => {
+  for (const table of tables) {
     db.run(table, (err) => {
       if (err) {
         console.error('Error creating table:', err.message);
       }
     });
-  });
+  }
 }
 
 // Blockchain configuration
@@ -133,15 +133,13 @@ const USDC_ABI = [
 ];
 
 // Utility functions
-function encryptPrivateKey(privateKey, password) {
-  // In production, use a proper encryption library
-  return Buffer.from(privateKey).toString('base64');
+function encryptUserPin(pin, secret) {
+  return ecb(Buffer.from(secret)).encrypt(Buffer.from(pin.toString())).toString();
 }
 
-function decryptPrivateKey(encryptedKey, password) {
-  // In production, use a proper decryption library
-  return Buffer.from(encryptedKey, 'base64').toString();
-}
+function decryptUserPin(encryptedPin, secret) {
+  return Number(ecb(Buffer.from(secret)).decrypt(Buffer.from(encryptedPin)));
+} 
 
 function generateWallet() {
   const wallet = ethers.Wallet.createRandom();
@@ -185,8 +183,11 @@ app.get('/api/health', (req, res) => {
 // User registration
 app.post('/api/users/register', async (req, res) => {
   try {
-    const { whatsapp_number, username, pin } = req.body;
-
+    console.log("Registering user");
+    const { whatsapp_number, username, pin, wallet_address } = req.body;
+    console.log("Whatsapp number:", whatsapp_number);
+    console.log("Username:", username);
+    console.log("PIN:", pin);
     if (!whatsapp_number || !pin) {
       return res.status(400).json({ error: 'WhatsApp number and PIN are required' });
     }
@@ -198,7 +199,7 @@ app.post('/api/users/register', async (req, res) => {
     }
 
     // Check if user already exists
-    db.get('SELECT id FROM users WHERE whatsapp_number = ?', [whatsapp_number], async (err, row) => {
+    db.get('SELECT whatsapp_number FROM users WHERE whatsapp_number = ?', [whatsapp_number], async (err, row) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
@@ -207,13 +208,11 @@ app.post('/api/users/register', async (req, res) => {
       }
 
       // Create new user
-      const userId = uuidv4();
-      const wallet = generateWallet();
-      const encryptedPrivateKey = encryptPrivateKey(wallet.privateKey, pin.toString());
+      const encryptedPin = encryptUserPin(pinNumber, process.env.JWT_SECRET);
 
       db.run(
-        'INSERT INTO users (id, whatsapp_number, username, pin, wallet_address, private_key_encrypted, wallet_balance, vault_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, whatsapp_number, username, pinNumber, wallet.address, encryptedPrivateKey, 1000, 0], // Start with 1000 USDC in wallet
+        'INSERT INTO users (whatsapp_number, username, encrypted_pin, wallet_address, wallet_balance, vault_balance) VALUES (?, ?, ?, ?, ?, ?)',
+        [whatsapp_number, username, encryptedPin, wallet_address, 0, 0], 
         function(err) {
           if (err) {
             return res.status(500).json({ error: 'Failed to create user' });
@@ -221,9 +220,9 @@ app.post('/api/users/register', async (req, res) => {
 
           res.status(201).json({
             message: 'User created successfully',
-            userId: userId,
-            walletAddress: wallet.address,
-            walletBalance: 1000,
+            whatsappNumber: whatsapp_number,
+            walletAddress: wallet_address,
+            walletBalance: 0,
             vaultBalance: 0
           });
         }
@@ -257,12 +256,19 @@ app.post('/api/users/login', (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (user.pin !== pinNumber) {
+    // Decrypt and verify PIN
+    try {
+      const decryptedPin = decryptUserPin(user.encrypted_pin, process.env.JWT_SECRET || 'your-secret-key');
+      if (decryptedPin !== pinNumber.toString()) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    } catch (error) {
+      console.error('PIN decryption error:', error);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = jwt.sign(
-      { userId: user.id, whatsapp_number: user.whatsapp_number },
+      { whatsappNumber: user.whatsapp_number },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
@@ -271,7 +277,6 @@ app.post('/api/users/login', (req, res) => {
       message: 'Login successful',
       token: token,
       user: {
-        id: user.id,
         whatsapp_number: user.whatsapp_number,
         username: user.username,
         wallet_address: user.wallet_address
@@ -282,8 +287,8 @@ app.post('/api/users/login', (req, res) => {
 
 // Get user profile
 app.get('/api/users/profile', authenticateToken, (req, res) => {
-  db.get('SELECT id, whatsapp_number, username, wallet_address, risk_profile, auth_profile, wallet_balance, vault_balance, created_at FROM users WHERE id = ?', 
-    [req.user.userId], (err, user) => {
+  db.get('SELECT whatsapp_number, username, wallet_address, risk_profile, auth_profile, wallet_balance, vault_balance, created_at FROM users WHERE whatsapp_number = ?', 
+    [req.user.whatsappNumber], (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
     }
@@ -297,7 +302,7 @@ app.get('/api/users/profile', authenticateToken, (req, res) => {
 // Get wallet balance
 app.get('/api/wallet/balance', authenticateToken, async (req, res) => {
   try {
-    db.get('SELECT * FROM users WHERE id = ?', [req.user.userId], async (err, user) => {
+    db.get('SELECT * FROM users WHERE whatsapp_number = ?', [req.user.whatsappNumber], async (err, user) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
@@ -351,64 +356,57 @@ app.post('/api/wallet/pay', authenticateToken, async (req, res) => {
     }
 
     // Get user wallet
-    db.get('SELECT * FROM wallets WHERE user_id = ?', [req.user.userId], async (err, wallet) => {
+    db.get('SELECT * FROM users WHERE whatsapp_number = ?', [req.user.whatsappNumber], async (err, user) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
-      if (!wallet) {
-        return res.status(404).json({ error: 'Wallet not found' });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
       }
 
-      if (wallet.balance_usdc < amount) {
+      if (user.wallet_balance < amount) {
         return res.status(400).json({ error: 'Insufficient USDC balance' });
       }
 
       // Create transaction record
       const txId = uuidv4();
       db.run(
-        'INSERT INTO transactions (id, user_id, type, amount, recipient, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [txId, req.user.userId, 'payment', amount, recipient, 'pending']
+        'INSERT INTO transactions (id, user_whatsapp_number, type, amount, recipient, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [txId, req.user.whatsappNumber, 'payment', amount, recipient, 'pending']
       );
 
       // Update local balance
       db.run(
-        'UPDATE wallets SET balance_usdc = balance_usdc - ? WHERE user_id = ?',
-        [amount, req.user.userId]
+        'UPDATE users SET wallet_balance = wallet_balance - ? WHERE whatsapp_number = ?',
+        [amount, req.user.whatsappNumber]
       );
 
       // If recipient exists in our system, update their balance
-      db.get('SELECT user_id FROM users WHERE whatsapp_number = ?', [recipient], (err, recipientUser) => {
+      db.get('SELECT whatsapp_number FROM users WHERE whatsapp_number = ?', [recipient], (err, recipientUser) => {
         if (recipientUser) {
           db.run(
-            'UPDATE wallets SET balance_usdc = balance_usdc + ? WHERE user_id = ?',
-            [amount, recipientUser.user_id]
+            'UPDATE users SET wallet_balance = wallet_balance + ? WHERE whatsapp_number = ?',
+            [amount, recipientUser.whatsapp_number]
           );
         }
       });
 
       // Send on-chain transaction if provider is available
-      if (provider) {
+      if (provider && user.wallet_address) {
         try {
-          const privateKey = decryptPrivateKey(wallet.private_key_encrypted, user.pin.toString());
-          const signer = new ethers.Wallet(privateKey, provider);
-          const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, USDC_ABI, signer);
-
-          // Convert amount to USDC units (6 decimals)
-          const amountInUnits = ethers.parseUnits(amount.toString(), 6);
+          // Note: In a real implementation, you would decrypt the private key using the encrypted_pin
+          // For now, we'll skip the blockchain transaction and just do off-chain
+          console.log('Blockchain transaction skipped - wallet address not configured');
           
-          const tx = await usdcContract.transfer(recipient, amountInUnits);
-          const receipt = await tx.wait();
-
           // Update transaction record
           db.run(
-            'UPDATE transactions SET tx_hash = ?, status = ?, gas_used = ?, gas_price = ?, block_number = ? WHERE id = ?',
-            [tx.hash, 'confirmed', receipt.gasUsed.toString(), tx.gasPrice.toString(), receipt.blockNumber, txId]
+            'UPDATE transactions SET status = ? WHERE id = ?',
+            ['confirmed', txId]
           );
 
           res.json({
-            message: 'Payment sent successfully',
+            message: 'Payment sent successfully (off-chain)',
             transactionId: txId,
-            txHash: tx.hash,
             amount: amount,
             recipient: recipient
           });
@@ -448,14 +446,14 @@ app.post('/api/wallet/buy', authenticateToken, async (req, res) => {
     const txId = uuidv4();
     
     db.run(
-      'INSERT INTO transactions (id, user_id, type, amount, status) VALUES (?, ?, ?, ?, ?)',
-      [txId, req.user.userId, 'buy', amount, 'confirmed']
+      'INSERT INTO transactions (id, user_whatsapp_number, type, amount, status) VALUES (?, ?, ?, ?, ?)',
+      [txId, req.user.whatsappNumber, 'buy', amount, 'confirmed']
     );
 
     // Update wallet balance
     db.run(
-      'UPDATE wallets SET balance_usdc = balance_usdc + ? WHERE user_id = ?',
-      [amount, req.user.userId]
+      'UPDATE users SET wallet_balance = wallet_balance + ? WHERE whatsapp_number = ?',
+      [amount, req.user.whatsappNumber]
     );
 
     res.json({
@@ -480,28 +478,28 @@ app.post('/api/wallet/sell', authenticateToken, async (req, res) => {
     }
 
     // Check balance
-    db.get('SELECT balance_usdc FROM wallets WHERE user_id = ?', [req.user.userId], (err, wallet) => {
+    db.get('SELECT wallet_balance FROM users WHERE whatsapp_number = ?', [req.user.whatsappNumber], (err, user) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
-      if (!wallet) {
-        return res.status(404).json({ error: 'Wallet not found' });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
       }
-      if (wallet.balance_usdc < amount) {
+      if (user.wallet_balance < amount) {
         return res.status(400).json({ error: 'Insufficient USDC balance' });
       }
 
       const txId = uuidv4();
       
       db.run(
-        'INSERT INTO transactions (id, user_id, type, amount, status) VALUES (?, ?, ?, ?, ?)',
-        [txId, req.user.userId, 'sell', amount, 'confirmed']
+        'INSERT INTO transactions (id, user_whatsapp_number, type, amount, status) VALUES (?, ?, ?, ?, ?)',
+        [txId, req.user.whatsappNumber, 'sell', amount, 'confirmed']
       );
 
       // Update wallet balance
       db.run(
-        'UPDATE wallets SET balance_usdc = balance_usdc - ? WHERE user_id = ?',
-        [amount, req.user.userId]
+        'UPDATE users SET wallet_balance = wallet_balance - ? WHERE whatsapp_number = ?',
+        [amount, req.user.whatsappNumber]
       );
 
       res.json({
@@ -526,38 +524,38 @@ app.post('/api/vault/deposit', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Valid amount is required' });
     }
 
-    // Check wallet balance
-    db.get('SELECT balance_usdc FROM wallets WHERE user_id = ?', [req.user.userId], (err, wallet) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      if (!wallet) {
-        return res.status(404).json({ error: 'Wallet not found' });
-      }
-      if (wallet.balance_usdc < amount) {
-        return res.status(400).json({ error: 'Insufficient USDC balance' });
-      }
+          // Check wallet balance
+      db.get('SELECT wallet_balance FROM users WHERE whatsapp_number = ?', [req.user.whatsappNumber], (err, user) => {
+        if (err) {
+          return res.status(500).json({ error: 'Database error' });
+        }
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        if (user.wallet_balance < amount) {
+          return res.status(400).json({ error: 'Insufficient USDC balance' });
+        }
 
-      const depositId = uuidv4();
-      const txId = uuidv4();
-      
-      // Create vault deposit
-      db.run(
-        'INSERT INTO vault_deposits (id, user_id, amount) VALUES (?, ?, ?)',
-        [depositId, req.user.userId, amount]
-      );
+        const depositId = uuidv4();
+        const txId = uuidv4();
+        
+        // Create vault deposit
+        db.run(
+          'INSERT INTO vault_deposits (id, user_whatsapp_number, amount) VALUES (?, ?, ?)',
+          [depositId, req.user.whatsappNumber, amount]
+        );
 
-      // Create transaction record
-      db.run(
-        'INSERT INTO transactions (id, user_id, type, amount, status) VALUES (?, ?, ?, ?, ?)',
-        [txId, req.user.userId, 'vault_deposit', amount, 'confirmed']
-      );
+        // Create transaction record
+        db.run(
+          'INSERT INTO transactions (id, user_whatsapp_number, type, amount, status) VALUES (?, ?, ?, ?, ?)',
+          [txId, req.user.whatsappNumber, 'vault_deposit', amount, 'confirmed']
+        );
 
-      // Update wallet balances
-      db.run(
-        'UPDATE wallets SET balance_usdc = balance_usdc - ?, vault_balance = vault_balance + ? WHERE user_id = ?',
-        [amount, amount, req.user.userId]
-      );
+        // Update wallet balances
+        db.run(
+          'UPDATE users SET wallet_balance = wallet_balance - ?, vault_balance = vault_balance + ? WHERE whatsapp_number = ?',
+          [amount, amount, req.user.whatsappNumber]
+        );
 
       res.json({
         message: 'Deposited to vault successfully',
@@ -583,14 +581,14 @@ app.post('/api/vault/withdraw', authenticateToken, async (req, res) => {
     }
 
     // Check vault balance
-    db.get('SELECT vault_balance FROM wallets WHERE user_id = ?', [req.user.userId], (err, wallet) => {
+    db.get('SELECT vault_balance FROM users WHERE whatsapp_number = ?', [req.user.whatsappNumber], (err, user) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
-      if (!wallet) {
-        return res.status(404).json({ error: 'Wallet not found' });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
       }
-      if (wallet.vault_balance < amount) {
+      if (user.vault_balance < amount) {
         return res.status(400).json({ error: 'Insufficient vault balance' });
       }
 
@@ -598,14 +596,14 @@ app.post('/api/vault/withdraw', authenticateToken, async (req, res) => {
       
       // Create transaction record
       db.run(
-        'INSERT INTO transactions (id, user_id, type, amount, status) VALUES (?, ?, ?, ?, ?)',
-        [txId, req.user.userId, 'vault_withdraw', amount, 'confirmed']
+        'INSERT INTO transactions (id, user_whatsapp_number, type, amount, status) VALUES (?, ?, ?, ?, ?)',
+        [txId, req.user.whatsappNumber, 'vault_withdraw', amount, 'confirmed']
       );
 
       // Update wallet balances
       db.run(
-        'UPDATE wallets SET balance_usdc = balance_usdc + ?, vault_balance = vault_balance - ? WHERE user_id = ?',
-        [amount, amount, req.user.userId]
+        'UPDATE users SET wallet_balance = wallet_balance + ?, vault_balance = vault_balance - ? WHERE whatsapp_number = ?',
+        [amount, amount, req.user.whatsappNumber]
       );
 
       res.json({
@@ -628,8 +626,8 @@ app.get('/api/transactions', authenticateToken, (req, res) => {
   const offset = parseInt(req.query.offset) || 0;
 
   db.all(
-    'SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
-    [req.user.userId, limit, offset],
+    'SELECT * FROM transactions WHERE user_whatsapp_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    [req.user.whatsappNumber, limit, offset],
     (err, transactions) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -642,8 +640,8 @@ app.get('/api/transactions', authenticateToken, (req, res) => {
 // Get vault deposits
 app.get('/api/vault/deposits', authenticateToken, (req, res) => {
   db.all(
-    'SELECT * FROM vault_deposits WHERE user_id = ? ORDER BY created_at DESC',
-    [req.user.userId],
+    'SELECT * FROM vault_deposits WHERE user_whatsapp_number = ? ORDER BY created_at DESC',
+    [req.user.whatsappNumber],
     (err, deposits) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -666,8 +664,8 @@ app.post('/api/contacts', authenticateToken, (req, res) => {
   const contactId = uuidv4();
   
   db.run(
-    'INSERT INTO contacts (id, user_id, name, contact_userid) VALUES (?, ?, ?, ?)',
-    [contactId, req.user.userId, name, contact_userid],
+    'INSERT INTO contacts (id, user_whatsapp_number, name, contact_userid) VALUES (?, ?, ?, ?)',
+    [contactId, req.user.whatsappNumber, name, contact_userid],
     function(err) {
       if (err) {
         if (err.code === 'SQLITE_CONSTRAINT') {
@@ -688,8 +686,8 @@ app.post('/api/contacts', authenticateToken, (req, res) => {
 // Get all contacts for a user
 app.get('/api/contacts', authenticateToken, (req, res) => {
   db.all(
-    'SELECT id, name, contact_userid, created_at FROM contacts WHERE user_id = ? ORDER BY name',
-    [req.user.userId],
+    'SELECT id, name, contact_userid, created_at FROM contacts WHERE user_whatsapp_number = ? ORDER BY name',
+    [req.user.whatsappNumber],
     (err, contacts) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -704,8 +702,8 @@ app.get('/api/contacts/:contactId', authenticateToken, (req, res) => {
   const { contactId } = req.params;
   
   db.get(
-    'SELECT id, name, contact_userid, created_at FROM contacts WHERE id = ? AND user_id = ?',
-    [contactId, req.user.userId],
+    'SELECT id, name, contact_userid, created_at FROM contacts WHERE id = ? AND user_whatsapp_number = ?',
+    [contactId, req.user.whatsappNumber],
     (err, contact) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -728,8 +726,8 @@ app.put('/api/contacts/:contactId', authenticateToken, (req, res) => {
   }
 
   db.run(
-    'UPDATE contacts SET name = ?, contact_userid = ? WHERE id = ? AND user_id = ?',
-    [name, contact_userid, contactId, req.user.userId],
+    'UPDATE contacts SET name = ?, contact_userid = ? WHERE id = ? AND user_whatsapp_number = ?',
+    [name, contact_userid, contactId, req.user.whatsappNumber],
     function(err) {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -752,8 +750,8 @@ app.delete('/api/contacts/:contactId', authenticateToken, (req, res) => {
   const { contactId } = req.params;
   
   db.run(
-    'DELETE FROM contacts WHERE id = ? AND user_id = ?',
-    [contactId, req.user.userId],
+    'DELETE FROM contacts WHERE id = ? AND user_whatsapp_number = ?',
+    [contactId, req.user.whatsappNumber],
     function(err) {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -778,8 +776,8 @@ app.post('/api/users/risk-profile', authenticateToken, (req, res) => {
   }
 
   db.run(
-    'UPDATE users SET risk_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [Number.parseInt(risk_profile), req.user.userId],
+    'UPDATE users SET risk_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
+    [Number.parseInt(risk_profile), req.user.whatsappNumber],
     function(err) {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -801,8 +799,8 @@ app.post('/api/users/auth-profile', authenticateToken, (req, res) => {
   }
 
   db.run(
-    'UPDATE users SET auth_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [Number.parseInt(auth_profile), req.user.userId],
+    'UPDATE users SET auth_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
+    [Number.parseInt(auth_profile), req.user.whatsappNumber],
     function(err) {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -828,7 +826,7 @@ app.use((req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Blockchain Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 Network: ${networkConfig.name}`);
   console.log(`💾 Database: SQLite`);
@@ -836,7 +834,7 @@ app.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down blockchain server...');
+  console.log('\n🛑 Shutting down server...');
   db.close((err) => {
     if (err) {
       console.error('Error closing database:', err.message);

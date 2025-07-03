@@ -7,11 +7,11 @@ A comprehensive WhatsApp bot system with blockchain integration, featuring user 
 The system consists of two main components:
 
 1. **WhatsApp Bot Server** (`backend-bot/`) - Handles WhatsApp messaging and user interactions - To be replaced by Whatsapp Business API for production deployment.
-2. **Blockchain Server** (`blockchain-server/`) - Manages user data, wallets, and blockchain integration
+2. **Server** (`server/`) - Manages user data, wallets, and blockchain integration
 
 ```
 ┌─────────────────┐    HTTP API    ┌──────────────────┐
-│   WhatsApp Bot  │◄──────────────►│ Blockchain Server│
+│   WhatsApp Bot  │◄──────────────►│ Server│
 │   (Port 3001)   │                │   (Port 3002)    │
 └─────────────────┘                └──────────────────┘
          │                                   │
@@ -30,10 +30,10 @@ The system consists of two main components:
 - npm or yarn
 - A smartphone with WhatsApp installed
 
-### 1. Start the Blockchain Server
+### 1. Start the Server
 
 ```bash
-cd blockchain-server
+cd server
 
 # Install dependencies
 npm install
@@ -92,13 +92,13 @@ npm start
 
 ## 🔧 Configuration
 
-### Blockchain Server Environment Variables
+### Server Environment Variables
 
-Create a `.env` file in the `blockchain-server/` directory:
+Create a `.env` file in the `server/` directory:
 
 ```env
 # Server Configuration
-BLOCKCHAIN_PORT=3002
+BACKEND_PORT=3002
 JWT_SECRET=your-super-secret-jwt-key
 
 # Blockchain Network
@@ -119,12 +119,20 @@ Create a `.env` file in the `backend-bot/` directory:
 
 ```env
 PORT=3001
-BLOCKCHAIN_SERVER_URL=http://localhost:3002
+BACKEND_SERVER_URL=http://localhost:3002
+```
+
+### Frontend Environment Variables
+
+Create a `.env.local` file in the root directory:
+
+```env
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3002
 ```
 
 ## 🌐 API Endpoints
 
-### Blockchain Server (Port 3002)
+### Server (Port 3002)
 
 #### Authentication
 - `POST /api/users/register` - Register new user
@@ -156,7 +164,7 @@ BLOCKCHAIN_SERVER_URL=http://localhost:3002
 
 ## 💾 Database Schema
 
-The blockchain server uses SQLite with the following tables:
+The server uses SQLite with the following tables:
 
 - **users** - User accounts and profiles
 - **wallets** - Wallet addresses and balances
@@ -165,7 +173,7 @@ The blockchain server uses SQLite with the following tables:
 
 ## 🔒 Security Features
 
-### Blockchain Server
+### Server
 - JWT-based authentication
 - Password hashing with bcrypt
 - Rate limiting
@@ -203,7 +211,7 @@ The vault system allows users to:
 ## 📊 Monitoring
 
 ### Health Checks
-- Blockchain server: `http://localhost:3002/api/health`
+- Server: `http://localhost:3002/api/health`
 - WhatsApp bot: `http://localhost:3001/api/health`
 
 ### Web Dashboard
@@ -222,7 +230,7 @@ The vault system allows users to:
 6. Regular security audits
 
 ### Environment Setup
-1. Configure production blockchain RPC endpoints
+1. Configure production backend RPC endpoints
 2. Set up proper database backups
 3. Implement monitoring and alerting
 4. Use environment-specific configurations
@@ -236,19 +244,19 @@ whatsapp-base-bot-smart-wallet/
 │   ├── server.js         # Main bot server
 │   ├── package.json      # Bot dependencies
 │   └── README.md         # Bot documentation
-├── blockchain-server/     # Blockchain server
-│   ├── server.js         # Main blockchain server
-│   ├── package.json      # Blockchain dependencies
+├── server/               # Server
+│   ├── server.js         # Main server
+│   ├── package.json      # Server dependencies
 │   ├── env.example       # Environment template
-│   └── README.md         # Blockchain documentation
+│   └── README.md         # Server documentation
 ├── app/                  # Frontend (if applicable)
 └── README.md            # This file
 ```
 
 ### Running in Development
 ```bash
-# Terminal 1 - Blockchain Server
-cd blockchain-server
+# Terminal 1 - Server
+cd server
 npm run dev
 
 # Terminal 2 - WhatsApp Bot

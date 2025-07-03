@@ -371,7 +371,7 @@ The server automatically estimates gas costs for transactions and handles gas pr
 
 ### Project Structure
 ```
-blockchain-server/
+server/
 ├── server.js              # Main server file
 ├── package.json           # Dependencies
 ├── env.example           # Environment template
@@ -399,7 +399,7 @@ curl http://localhost:3002/api/health
 
 ## Integration with WhatsApp Bot
 
-The blockchain server integrates with the WhatsApp bot through HTTP API calls. The bot can:
+The server integrates with the WhatsApp bot through HTTP API calls. The bot can:
 
 1. Register users automatically
 2. Query wallet balances
@@ -409,7 +409,7 @@ The blockchain server integrates with the WhatsApp bot through HTTP API calls. T
 
 ### Environment Variables for Integration
 ```env
-BLOCKCHAIN_SERVER_URL=http://localhost:3002
+BACKEND_SERVER_URL=http://localhost:3002
 ```
 
 ## License
