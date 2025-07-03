@@ -7,39 +7,45 @@ class SessionManager {
   // Check if user session is expired and handle PIN prompting
   async checkAndHandleSession(whatsappNumber, contact) {
     try {
+
       const sessionResult = await this.backendService.validateSession(whatsappNumber);
       
       if (!sessionResult) {
-        return { requiresPin: false, message: null };
+        return { registered: false, requiresPin: false, 
+          message: "*User not registered*\n\nPlease register first with /register" 
+        };
       }
 
       // User needs to register
       if (sessionResult.requiresRegistration) {
-        return { requiresPin: false, message: null };
+        return { registered: false, requiresPin: false, 
+          message: "*User not registered*\n\nPlease register first with /register" 
+        };
       }
 
       // Session is valid
       if (sessionResult.success && !sessionResult.requiresPin) {
-        return { requiresPin: false, message: null };
+        return { active: true, requiresPin: false, message: null };
       }
 
       // Session expired, prompt for PIN
       if (sessionResult.requiresPin) {
+        const timestamp = new Date();
         this.pendingPinResponses.set(whatsappNumber, { 
-          timestamp: new Date() 
+          timestamp: timestamp 
         });
-        
+              
         const userName = contact.pushname || contact.number || whatsappNumber;
         return {
           requiresPin: true,
-          message: `🔐 *Session Expired*\n\nHi ${userName}! Your session has expired due to inactivity.\n\nPlease enter your PIN to continue:\n\n*PIN:* (4-6 digits)`
+          message: `🔐 *Session Expired*\n\nHi ${userName}! Your session has expired due to inactivity.\n\nPlease enter your PIN to continue:\n\n*PIN:* (4-6 digits)\n\n⏰ *You have 7 seconds to enter your PIN*`
         };
       }
       
-      return { requiresPin: false, message: null };
+      return { registered: true, requiresPin: false, message: null };
     } catch (error) {
       console.error('Error checking session:', error);
-      return { requiresPin: false, message: null };
+      return { registered: false, requiresPin: false, message: null };
     }
   }
 
@@ -49,7 +55,18 @@ class SessionManager {
       const pendingResponse = this.pendingPinResponses.get(whatsappNumber);
       
       if (!pendingResponse) {
-        return { success: false, message: 'No PIN request pending' };
+        return { success: false, message: 'No PIN request pending or PIN request has expired' };
+      }
+
+      // Check if PIN request has expired (7 seconds)
+      const now = new Date();
+      const timeDiff = now - pendingResponse.timestamp;
+      if (timeDiff > 7000) {
+        this.pendingPinResponses.delete(whatsappNumber);
+        return { 
+          success: false, 
+          message: '❌ *PIN Request Expired*\n\nYour PIN request has expired. Please try again with /help or any command.' 
+        };
       }
 
       // Validate PIN format
@@ -70,7 +87,12 @@ class SessionManager {
         
         return { 
           success: true, 
-          message: '✅ *PIN Verified*\n\nSession restored! You can now continue using the bot.\n\nType /help to see available commands.' 
+          message: `✅ *PIN Verified*\n\nSession restored! 
+You can now continue using the bot.
+
+*For security, erase the PIN message from your phone*
+
+Type /help to see available commands.`
         };
       }
       
@@ -90,7 +112,20 @@ class SessionManager {
 
   // Check if user is awaiting PIN input
   isAwaitingPin(whatsappNumber) {
-    return this.pendingPinResponses.has(whatsappNumber);
+    const pendingResponse = this.pendingPinResponses.get(whatsappNumber);
+    if (!pendingResponse) {
+      return false;
+    }
+    
+    // Check if PIN request has expired (7 seconds)
+    const now = new Date();
+    const timeDiff = now - pendingResponse.timestamp;
+    if (timeDiff > 7000) {
+      this.pendingPinResponses.delete(whatsappNumber);
+      return false;
+    }
+    
+    return true;
   }
 
   // Check if user has an active session (delegated to server)
@@ -107,7 +142,7 @@ class SessionManager {
   // Update user activity (delegated to server)
   async updateActivity(whatsappNumber) {
     try {
-      await this.backendService.validateSession(whatsappNumber);
+      await this.backendService.updateUserActivity(whatsappNumber);
     } catch (error) {
       console.error('Error updating user activity:', error);
     }
@@ -130,7 +165,10 @@ class SessionManager {
         expired: sessionStatus?.expired ?? true,
         requiresPin: sessionStatus?.requiresPin ?? false,
         pendingPin: pendingPin,
-        lastActivity: sessionStatus?.lastActivity ?? null
+        lastActivity: sessionStatus?.lastActivity ?? null,
+        lastActivityFormatted: sessionStatus?.lastActivityFormatted ?? null,
+        expirationTime: sessionStatus?.expirationTime ?? null,
+        expirationTimeFormatted: sessionStatus?.expirationTimeFormatted ?? null
       };
     } catch (error) {
       console.error('Error getting session info:', error);

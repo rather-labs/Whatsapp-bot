@@ -34,8 +34,8 @@ class BackendService {
     }
   }
 
-  // Enhanced session validation - centralized in server
-  async validateSession(whatsappNumber, pin = null) {
+  // Enhanced session validation 
+  async validateSession(whatsappNumber, pin) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/session/validate`, {
         whatsapp_number: whatsappNumber,
@@ -368,6 +368,19 @@ class BackendService {
   // Get backend server URL
   getServerUrl() {
     return this.BACKEND_SERVER_URL;
+  }
+
+  // Update user activity in database
+  async updateUserActivity(whatsappNumber) {
+    try {
+      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/session/update`, {
+        whatsapp_number: whatsappNumber
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user activity:', error.response?.data || error.message);
+      return null;
+    }
   }
 
   // Clear user token when session expires

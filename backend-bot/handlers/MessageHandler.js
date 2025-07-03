@@ -16,11 +16,6 @@ class MessageHandler {
         
     console.log('message', message);
 
-    // Check if message is a vCard
-    if (message.type === 'vcard') {
-      return this.handleVCardMessage(message.body);
-    }
-
     // Check if user is awaiting PIN input
     if (this.sessionManager.isAwaitingPin(whatsappNumber)) {
       // Handle PIN input
@@ -28,18 +23,13 @@ class MessageHandler {
       return pinResult.message;
     }
 
-    // Check session status and handle expiration
-    const sessionResult = await this.sessionManager.checkAndHandleSession(whatsappNumber, contact);
-    if (sessionResult.requiresPin) {
-      return sessionResult.message;
+    // Check if message is a vCard
+    if (message.type === 'vcard') {
+      return this.handleVCardMessage(message.body);
     }
-
-    // Update user activity for valid session
-    await this.sessionManager.updateActivity(whatsappNumber);
     
     // Handle different commands
-    const response = await this.processCommand(text, message, contact, userId, whatsappNumber);
-    return response;
+    return await this.processCommand(text, message, contact, userId, whatsappNumber);
   }
 
   // Process different commands
@@ -49,7 +39,6 @@ class MessageHandler {
       return this.getGreetingMessage();
     }
 
-    
     // Help command
     if (text === '/help') {
       return this.getHelpMessage();
@@ -68,49 +57,64 @@ class MessageHandler {
     // User commands
     if (text === '/register') {
       return await this.handleRegisterUser(whatsappNumber, contact, userId);
+    }    
+    
+    // Session commands
+    if (text === '/session') {
+      return await this.handleSessionStatus(whatsappNumber, contact);
     }
+
+    const checkSession = async () => {
+      // Check session status and handle expiration
+      const sessionResult = await this.sessionManager.checkAndHandleSession(whatsappNumber, contact);
+      
+      if (sessionResult.requiresPin || !sessionResult.registered) {
+        return sessionResult.message;
+      }
+
+      // Update user activity for valid session
+      await this.sessionManager.updateActivity(whatsappNumber);
+    
+      return null
+    }
+
     
     if (text === '/balance') {
-      return this.handleBalance(userId);
+      return await checkSession() || this.handleBalance(userId);
     }
     
     if (text.startsWith('/pay')) {
-      return await this.handlePayment(text, userId, whatsappNumber);
+      return await checkSession() || this.handlePayment(text, userId, whatsappNumber);
     }
     
     if (text.startsWith('/buy')) {
-      return this.handleBuy(text, userId);
+      return await checkSession() || this.handleBuy(text, userId);
     }
     
     if (text.startsWith('/sell')) {
-      return this.handleSell(text, userId);
+      return await checkSession() || this.handleSell(text, userId);
     }
     
     if (text.startsWith('/deposit')) {
-      return this.handleDeposit(text, userId);
+      return await checkSession() || this.handleDeposit(text, userId);
     }
     
     if (text.startsWith('/withdraw')) {
-      return this.handleWithdraw(text, userId);
+      return await checkSession() || this.handleWithdraw(text, userId);
     }
     
     // Profile commands
     if (text === '/riskprofile') {
-      return this.getRiskProfileMessage();
+      return await checkSession() || this.getRiskProfileMessage();
     }
     
     if (text === '/authprofile') {
-      return this.getAuthProfileMessage();
+      return await checkSession() || this.getAuthProfileMessage();
     }
-    
-    // Session commands
-    if (text === '/session') {
-      return await this.handleSessionStatus(whatsappNumber);
-    }
-    
+        
     // Admin commands
     if (text === '/disconnect') {
-      return await this.handleDisconnect(message, whatsappNumber);
+      return await checkSession() || this.handleDisconnect(message, whatsappNumber);
     }
     
     // Default response for unrecognized messages
@@ -129,6 +133,7 @@ Available commands:
 - /help - Show this help message
 - /status - Check bot status
 - /info - Get information about this bot
+- /session - Check your session status
 - /register - Register a new user account
 - /balance - Check wallet balance
 - /pay <amount> <recipient> - Pay USDC to another user
@@ -151,10 +156,10 @@ I can also parse vCard contact information when you share contacts! 📇`;
 • /help - Show this help message
 • /status - Check bot status
 • /info - Get information about this bot
-• /session - Check your session status
 
 *User Commands:*
 • /register - Register a new user account
+• /session - Check your session status. It will expire after 5 minutes
 • /balance - Check wallet balance
 • /pay <amount> <recipient> - Pay USDC to another user
 • /buy <amount> - Buy USDC tokens with fiat currency
@@ -174,7 +179,7 @@ I can also parse vCard contact information when you share contacts! 📇`;
 • /disconnect - Disconnect the bot (admin or bot number only)
 
 *Contact Features:*
-• Share contacts - I can parse vCard information automatically
+• Share contacts - I can parse contact information automatically for easier payments
 
 *Examples:*
 • /pay 100 1234567890
@@ -604,7 +609,7 @@ The WhatsApp bot has been disconnected.
 To reconnect, restart the server or scan the QR code again.
 
 Status: Disconnected
-Time: ${new Date().toLocaleString()}`;
+Time: ${this.formatTimestamp(new Date().toISOString())}`;
       }
       
       return `❌ *Disconnect Error*
@@ -644,8 +649,31 @@ I can also parse contact information when you share contacts! 📇
 Or just say hello! 😊`;
   }
 
+  // Utility function to format UTC timestamps in user's locale
+  formatTimestamp(utcTimestamp, options = {}) {
+    if (!utcTimestamp) return 'Never';
+    
+    try {
+      const date = new Date(utcTimestamp);
+      const defaultOptions = {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short'
+      };
+      
+      return date.toLocaleString(undefined, { ...defaultOptions, ...options });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return 'Invalid Date';
+    }
+  }
+
   // Handle session status command
-  async handleSessionStatus(whatsappNumber) {
+  async handleSessionStatus(whatsappNumber, contact) {
     try {
       const sessionInfo = await this.sessionManager.getSessionInfo(whatsappNumber);
       
@@ -658,16 +686,22 @@ Or just say hello! 😊`;
       }
 
       const status = sessionInfo.expired ? '🔴 Expired' : '🟢 Active';
-      const pinStatus = sessionInfo.pendingPin ? '🟡 Awaiting PIN' : '✅ Ready';
-      const lastActivity = sessionInfo.lastActivity ? new Date(sessionInfo.lastActivity).toLocaleString() : 'Never';
+      const lastActivity = sessionInfo.lastActivityFormatted || this.formatTimestamp(sessionInfo.lastActivity);
+      const expirationTime = sessionInfo.expirationTimeFormatted || this.formatTimestamp(sessionInfo.expirationTime);
       
+      if (sessionInfo.expired) {
+        const timestamp = new Date();
+        this.sessionManager.pendingPinResponses.set(whatsappNumber, { 
+          timestamp: timestamp 
+        });
+        return "📊 *Session Status*\n\n❌ Your *session has expired*. Please enter your PIN to continue.";
+      }
       return `📊 *Session Status*
 
 Status: ${status}
-PIN Status: ${pinStatus}
 Last Activity: ${lastActivity}
-
-${sessionInfo.expired ? 'Your session has expired. Please enter your PIN to continue.' : 'Your session is active and ready to use!'}`;
+Expires At: ${expirationTime}
+`;
     } catch (error) {
       console.error('Error getting session status:', error);
       return "📊 *Session Status*\n\n❌ Error retrieving session status\n\nPlease try again or contact support.";

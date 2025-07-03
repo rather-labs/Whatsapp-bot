@@ -1,3 +1,12 @@
+/**
+ * WhatsApp Bot Backend Server
+ * 
+ * TIMESTAMP POLICY: All timestamps are stored in UTC/ISO 8601 format
+ * - Database columns use TEXT type with UTC datetime defaults
+ * - All timestamp operations use new Date().toISOString()
+ * - This ensures consistent timezone handling across all environments
+ */
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -51,16 +60,16 @@ function initializeDatabase() {
       auth_profile INTEGER DEFAULT 1,
       wallet_balance REAL DEFAULT 0,
       vault_balance REAL DEFAULT 0,
-      last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      last_activity TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'utc')),
+      updated_at TEXT DEFAULT (datetime('now', 'utc'))
     )`,
     `CREATE TABLE IF NOT EXISTS contacts (
       id TEXT PRIMARY KEY,
       user_whatsapp_number TEXT NOT NULL,
       name TEXT NOT NULL,
       contact_userid TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT DEFAULT (datetime('now', 'utc')),
       FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number),
       UNIQUE(user_whatsapp_number, contact_userid)
     )`,
@@ -75,7 +84,7 @@ function initializeDatabase() {
       gas_used INTEGER,
       gas_price TEXT,
       block_number INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT DEFAULT (datetime('now', 'utc')),
       FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number)
     )`,
     `CREATE TABLE IF NOT EXISTS vault_deposits (
@@ -84,7 +93,7 @@ function initializeDatabase() {
       amount REAL NOT NULL,
       apy REAL DEFAULT 0.05,
       status TEXT DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT DEFAULT (datetime('now', 'utc')),
       FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number)
     )`
   ];
@@ -96,7 +105,9 @@ function initializeDatabase() {
       }
     });
   }
+  
 }
+
 
 // Blockchain configuration
 const NETWORK_CONFIG = {
@@ -150,12 +161,36 @@ function generateWallet() {
   };
 }
 
+// Utility function to format UTC timestamps in user's locale
+function formatTimestamp(utcTimestamp, options = {}) {
+  if (!utcTimestamp) return null;
+  
+  try {
+    const date = new Date(utcTimestamp);
+    const defaultOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short'
+    };
+    
+    return date.toLocaleString(undefined, { ...defaultOptions, ...options });
+  } catch (error) {
+    console.error('Error formatting timestamp:', error);
+    return null;
+  }
+}
+
 // Session management functions
 const updateUserActivity = (whatsappNumber) => {
   return new Promise((resolve, reject) => {
+    const utcTimestamp = new Date().toISOString();
     db.run(
-      'UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
-      [whatsappNumber],
+      'UPDATE users SET last_activity = ? WHERE whatsapp_number = ?',
+      [utcTimestamp, whatsappNumber],
       (err) => {
         if (err) {
           reject(err);
@@ -190,7 +225,14 @@ function getUserSessionStatus(whatsappNumber) {
           resolve({ exists: false, expired: true });
         } else {
           const expired = isSessionExpired(user.last_activity);
-          resolve({ exists: true, expired, lastActivity: user.last_activity });
+          const lastActivityTime = new Date(user.last_activity);
+          const expirationTime = new Date(lastActivityTime.getTime() + (5 * 60 * 1000)); // 5 minutes from last activity
+          resolve({ 
+            exists: true, 
+            expired, 
+            lastActivity: user.last_activity,
+            expirationTime: expirationTime.toISOString()
+          });
         }
       }
     );
@@ -210,8 +252,8 @@ function validateUserPin(whatsappNumber, pin) {
           resolve({ valid: false, message: 'User not found' });
         } else {
           try {
-            const decryptedPin = decryptUserPin(user.encrypted_pin, process.env.JWT_SECRET || 'your-secret-key');
-            const isValid = decryptedPin === pin;
+            const encryptedPin = encryptUserPin(pin, process.env.JWT_SECRET);
+            const isValid = user.encrypted_pin === encryptedPin;
             resolve({ 
               valid: isValid, 
               message: isValid ? 'PIN validated successfully' : 'Invalid PIN' 
@@ -438,6 +480,10 @@ app.post('/api/users/session/validate', async (req, res) => {
       });
     }
 
+    console.log("Session status:", sessionStatus);
+    console.log("PIN:", pin);
+    console.log("Expired:", sessionStatus.expired);
+    
     // If session is expired and PIN is provided, validate it
     if (sessionStatus.expired && pin) {
       const pinValidation = await validateUserPin(whatsapp_number, pin);
@@ -445,11 +491,16 @@ app.post('/api/users/session/validate', async (req, res) => {
       if (pinValidation.valid) {
         // PIN is correct, update activity and restore session
         await updateUserActivity(whatsapp_number);
+        
+        // Get updated session status with expiration time
+        const updatedSessionStatus = await getUserSessionStatus(whatsapp_number);
+        
         return res.json({
           success: true,
           message: 'PIN validated successfully',
           sessionRestored: true,
-          requiresPin: false
+          requiresPin: false,
+          expirationTime: updatedSessionStatus.expirationTime
         });
       }
       
@@ -474,11 +525,15 @@ app.post('/api/users/session/validate', async (req, res) => {
     // Session is valid, update activity
     await updateUserActivity(whatsapp_number);
     
+    // Get updated session status with expiration time
+    const updatedSessionStatus = await getUserSessionStatus(whatsapp_number);
+    
     return res.json({
       success: true,
       message: 'Session is valid',
       requiresPin: false,
-      sessionExpired: false
+      sessionExpired: false,
+      expirationTime: updatedSessionStatus.expirationTime
     });
   } catch (error) {
     console.error('Session validation error:', error);
@@ -509,6 +564,9 @@ app.get('/api/users/session/status/:whatsapp_number', async (req, res) => {
       exists: true,
       expired: sessionStatus.expired,
       lastActivity: sessionStatus.lastActivity,
+      lastActivityFormatted: formatTimestamp(sessionStatus.lastActivity),
+      expirationTime: sessionStatus.expirationTime,
+      expirationTimeFormatted: formatTimestamp(sessionStatus.expirationTime),
       requiresPin: sessionStatus.expired,
       requiresRegistration: false
     });
@@ -520,7 +578,7 @@ app.get('/api/users/session/status/:whatsapp_number', async (req, res) => {
 
 // Get user profile
 app.get('/api/users/profile', authenticateToken, (req, res) => {
-  db.get('SELECT whatsapp_number, username, wallet_address, risk_profile, auth_profile, wallet_balance, vault_balance, created_at FROM users WHERE whatsapp_number = ?', 
+  db.get('SELECT whatsapp_number, username, wallet_address, risk_profile, auth_profile, wallet_balance, vault_balance, created_at, last_activity FROM users WHERE whatsapp_number = ?', 
     [req.user.whatsappNumber], (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
@@ -528,7 +586,15 @@ app.get('/api/users/profile', authenticateToken, (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(user);
+    
+    // Add formatted timestamps
+    const response = {
+      ...user,
+      created_at_formatted: formatTimestamp(user.created_at),
+      last_activity_formatted: formatTimestamp(user.last_activity)
+    };
+    
+    res.json(response);
   });
 });
 
@@ -1008,9 +1074,10 @@ app.post('/api/users/risk-profile', authenticateToken, (req, res) => {
     return res.status(400).json({ error: 'Valid risk profile is required (1=low, 2=moderate, 3=high)' });
   }
 
+  const utcTimestamp = new Date().toISOString();
   db.run(
-    'UPDATE users SET risk_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
-    [Number.parseInt(risk_profile), req.user.whatsappNumber],
+    'UPDATE users SET risk_profile = ?, updated_at = ? WHERE whatsapp_number = ?',
+    [Number.parseInt(risk_profile), utcTimestamp, req.user.whatsappNumber],
     (err) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -1031,9 +1098,10 @@ app.post('/api/users/auth-profile', authenticateToken, (req, res) => {
     return res.status(400).json({ error: 'Valid auth profile is required (1=basic, 2=enhanced, 3=premium)' });
   }
 
+  const utcTimestamp = new Date().toISOString();
   db.run(
-    'UPDATE users SET auth_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
-    [Number.parseInt(auth_profile), req.user.whatsappNumber],
+    'UPDATE users SET auth_profile = ?, updated_at = ? WHERE whatsapp_number = ?',
+    [Number.parseInt(auth_profile), utcTimestamp, req.user.whatsappNumber],
     (err) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
