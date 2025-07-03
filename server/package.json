@@ -1,7 +1,7 @@
 {
-  "name": "blockchain-server",
+  "name": "server",
   "version": "1.0.0",
-  "description": "Blockchain server for user management and EVM transactions",
+  "description": "Backend server for user management and EVM transactions",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -27,7 +27,7 @@
     "nodemon": "^3.0.2"
   },
   "keywords": [
-    "blockchain",
+    "backend",
     "ethereum",
     "evm",
     "database",

@@ -12,8 +12,8 @@ A WhatsApp bot built with Node.js and whatsapp-web.js that includes wallet funct
 - Contact management and reading
 - Modular architecture with separation of concerns
 
-### 💰 Wallet Commands
-- `/create` - Create a new wallet with 1,000 initial USDC
+### 💰 User Commands
+- `/register` - Register a new user account with 1,000 initial USDC
 - `/balance` - Check your current wallet balance and transaction history
 - `/pay <amount> <recipient>` - Send USDC to another user
 - `/buy <amount>` - Purchase USDC tokens (simulated)
@@ -44,7 +44,7 @@ A WhatsApp bot built with Node.js and whatsapp-web.js that includes wallet funct
 3. Create a `.env` file:
    ```env
    PORT=3001
-   BLOCKCHAIN_SERVER_URL=http://localhost:3002
+   BACKEND_SERVER_URL=http://localhost:3002
    ALLOWED_BOT_NUMBER=your_bot_number
    ADMIN_NUMBER=your_admin_number
    ```
@@ -75,8 +75,8 @@ npm start
 - `/status` - Check bot connection status
 - `/info` - Get bot information
 
-#### Wallet Commands
-- `/create` - Initialize your wallet
+#### User Commands
+- `/register` - Register your account
 - `/balance` - Check your USDC balance
 - `/pay 100 1234567890` - Send 100 USDC to user 1234567890
 - `/buy 50` - Purchase 50 USDC
@@ -98,7 +98,7 @@ npm start
 
 - `GET /api/status` - Get bot status
 - `GET /api/health` - Health check with wallet info
-- `GET /api/wallets` - Get all active wallets
+- `GET /api/users` - Get all active users
 - `POST /api/send-message` - Send message programmatically
 - `POST /api/disconnect` - Disconnect bot (requires authorization)
 - `POST /api/regenerate-qr` - Regenerate QR code
@@ -111,8 +111,7 @@ The bot is built with a clean, modular architecture:
 
 #### Services Layer (`/services/`)
 - **ConnectionManager.js** - WhatsApp client connection/disconnection logic
-- **WalletService.js** - Wallet operations
-- **BlockchainService.js** - Blockchain integration
+- **BackendService.js** - User operations and backend integration
 
 #### Handlers Layer (`/handlers/`)
 - **MessageHandler.js** - Message processing and command handling
@@ -120,9 +119,9 @@ The bot is built with a clean, modular architecture:
 #### Routes Layer (`/routes/`)
 - **ApiRoutes.js** - API endpoints and routes
 
-### Wallet System
-The bot includes a simulated wallet system that:
-- Automatically creates wallets for new users
+### User System
+The bot includes a simulated user system that:
+- Automatically registers users for new accounts
 - Tracks balances and transaction history
 - Supports peer-to-peer transfers
 - Simulates buy/sell operations
@@ -146,8 +145,7 @@ The bot includes a simulated wallet system that:
 backend-bot/
 ├── services/
 │   ├── ConnectionManager.js    # WhatsApp client management
-│   ├── WalletService.js        # Wallet operations
-│   └── BlockchainService.js    # Blockchain integration
+│   └── BackendService.js       # User operations and backend integration
 ├── handlers/
 │   └── MessageHandler.js       # Message processing
 ├── routes/
@@ -164,7 +162,7 @@ backend-bot/
 - `socket.io` - Real-time communication
 - `qrcode` - QR code generation
 - `puppeteer` - Browser automation
-- `axios` - HTTP client for blockchain integration
+- `axios` - HTTP client for backend integration
 
 ### Development Benefits
 - **Separation of Concerns**: Each component has a single responsibility
@@ -178,10 +176,10 @@ backend-bot/
 ⚠️ **Important**: This is a development/demo bot. For production use:
 - Implement proper authentication and authorization
 - Add rate limiting and input validation
-- Use secure storage for wallet data
+- Use secure storage for user data
 - Implement proper error handling
 - Add logging and monitoring
-- Secure blockchain integration
+- Secure backend integration
 
 ## License
 

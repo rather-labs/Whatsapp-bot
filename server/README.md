@@ -1,6 +1,6 @@
-# Blockchain Server
+# Backend Server
 
-A comprehensive blockchain server that provides user management, wallet functionality, and EVM blockchain integration for the WhatsApp bot system.
+A comprehensive backend server that provides user management, wallet functionality, and EVM blockchain integration for the WhatsApp bot system.
 
 ## Features
 
@@ -39,9 +39,9 @@ A comprehensive blockchain server that provides user management, wallet function
 
 ## Installation
 
-1. **Navigate to the blockchain server directory:**
+1. **Navigate to the backend server directory:**
    ```bash
-   cd blockchain-server
+   cd server
    ```
 
 2. **Install dependencies:**
@@ -56,7 +56,7 @@ A comprehensive blockchain server that provides user management, wallet function
    
    Edit the `.env` file with your configuration:
    ```env
-   BLOCKCHAIN_PORT=3002
+   BACKEND_PORT=3002
    JWT_SECRET=your-super-secret-jwt-key
    NETWORK=sepolia
    SEPOLIA_RPC=https://sepolia.infura.io/v3/YOUR_PROJECT_ID

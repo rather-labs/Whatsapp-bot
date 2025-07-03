@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 
 class ApiRoutes {
-  constructor(connectionManager, walletService, blockchainService) {
+  constructor(connectionManager, backendService) {
     this.connectionManager = connectionManager;
-    this.walletService = walletService;
-    this.blockchainService = blockchainService;
+    this.backendService = backendService;
     
     this.setupRoutes();
   }
@@ -16,9 +15,9 @@ class ApiRoutes {
       res.json(this.connectionManager.getBotState());
     });
 
-    // Wallets endpoint
-    router.get('/wallets', (req, res) => {
-      res.json(this.walletService.getAllWallets());
+    // Users endpoint
+    router.get('/users', (req, res) => {
+      res.json(this.backendService.getAllUsers());
     });
 
     // Send message endpoint
@@ -53,8 +52,8 @@ class ApiRoutes {
         timestamp: new Date().toISOString(),
         botStatus: this.connectionManager.getBotState().status,
         botReady: this.connectionManager.getBotState().isReady,
-        activeWallets: this.walletService.getWalletCount(),
-        blockchainServer: this.blockchainService.getServerUrl()
+        activeUsers: this.backendService.getUserCount(),
+        backendServer: this.backendService.getServerUrl()
       });
     });
 

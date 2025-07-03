@@ -11,7 +11,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.BLOCKCHAIN_PORT || 3002;
+const PORT = process.env.BACKEND_PORT || 3002;
 
 // Security middleware
 app.use(helmet());

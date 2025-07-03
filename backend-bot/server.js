@@ -6,8 +6,7 @@ require('dotenv').config();
 
 // Import services and handlers
 const ConnectionManager = require('./services/ConnectionManager');
-const WalletService = require('./services/WalletService');
-const BlockchainService = require('./services/BlockchainService');
+const BackendService = require('./services/BackendService');
 const MessageHandler = require('./handlers/MessageHandler');
 const ApiRoutes = require('./routes/ApiRoutes');
 
@@ -31,10 +30,9 @@ class WhatsAppBotServer {
     
     // Initialize services
     this.connectionManager = new ConnectionManager(this.io, this.botState);
-    this.walletService = new WalletService();
-    this.blockchainService = new BlockchainService();
-    this.messageHandler = new MessageHandler(this.connectionManager, this.walletService, this.blockchainService);
-    this.apiRoutes = new ApiRoutes(this.connectionManager, this.walletService, this.blockchainService);
+    this.backendService = new BackendService();
+    this.messageHandler = new MessageHandler(this.connectionManager, this.backendService);
+    this.apiRoutes = new ApiRoutes(this.connectionManager, this.backendService);
     
     this.setupMiddleware();
     this.setupRoutes();
@@ -98,8 +96,8 @@ class WhatsAppBotServer {
       console.log('📱 WebSocket server ready for real-time updates');
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📊 Status endpoint: http://localhost:${PORT}/api/status`);
-      console.log(`💰 Wallet endpoint: http://localhost:${PORT}/api/wallets`);
-      console.log(`🔗 Blockchain server: ${this.blockchainService.getServerUrl()}`);
+      console.log(`💰 User endpoint: http://localhost:${PORT}/api/users`);
+      console.log(`🔗 Backend server: ${this.backendService.getServerUrl()}`);
     });
 
     // Initialize WhatsApp client

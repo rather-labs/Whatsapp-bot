@@ -1,8 +1,7 @@
 class MessageHandler {
-  constructor(connectionManager, walletService, blockchainService) {
+  constructor(connectionManager, backendService) {
     this.connectionManager = connectionManager;
-    this.walletService = walletService;
-    this.blockchainService = blockchainService;
+    this.backendService = backendService;
   }
 
   // Main message processing function
@@ -12,8 +11,8 @@ class MessageHandler {
     const userId = message.from;
     const whatsappNumber = userId.replace('@c.us', '');
     
-    // Initialize wallet for user
-    this.walletService.initializeWallet(userId);
+    // Initialize user account
+    this.backendService.initializeUser(userId);
     
     console.log('message', message);
 
@@ -50,9 +49,9 @@ class MessageHandler {
       return this.getInfoMessage();
     }
     
-    // Wallet commands
-    if (text === '/create') {
-      return await this.handleCreateWallet(whatsappNumber, contact, userId);
+    // User commands
+    if (text === '/register') {
+      return await this.handleRegisterUser(whatsappNumber, contact, userId);
     }
     
     if (text === '/balance') {
@@ -109,15 +108,15 @@ Available commands:
 - /help - Show this help message
 - /status - Check bot status
 - /info - Get information about this bot
-- /create - Create a new wallet
+- /register - Register a new user account
 - /balance - Check wallet balance
 - /pay <amount> <recipient> - Pay USDC to another user
 - /buy <amount> - Buy USDC tokens and deposit on vault to generate yield
 - /sell <amount> - Sell USDC tokens
 - /deposit <amount> - Deposit USDC to vault to generate yield
 - /withdraw <amount> - Withdraw USDC from vault to your wallet
-- /riskprofile - Change user risk profile
-- /authprofile - Check user auth profile
+- /riskprofile <profile> - Change user risk profile
+- /authprofile <profile> - Check user auth profile
 - /disconnect - Disconnect the bot (authorized users only)
 
 I can also parse vCard contact information when you share contacts! 📇`;
@@ -132,16 +131,22 @@ I can also parse vCard contact information when you share contacts! 📇`;
 • /status - Check bot status
 • /info - Get information about this bot
 
-*Wallet Commands:*
-• /create - Create a new wallet
+*User Commands:*
+• /register - Register a new user account
 • /balance - Check wallet balance
 • /pay <amount> <recipient> - Pay USDC to another user
 • /buy <amount> - Buy USDC tokens with fiat currency
 • /sell <amount> - Sell USDC tokens to fiat currency
 • /deposit <amount> - Deposit USDC to vault to generate yield
 • /withdraw <amount> - Withdraw USDC from vault to your wallet
-• /riskprofile - Change user risk profile
-• /authprofile - Check user auth profile
+• /riskprofile <profile> - Change user risk profile
+    + Low - Conservative investments with low yields
+    + Moderate - Balanced approach 
+    + High - Aggressive investments with high yields
+• /authprofile <profile> - Check user auth profile
+    + High - The user must sign all transactions with the wallet 
+    + Medium - The user is required only a pin for transactions between users
+    + Low - The user only has to sign for fiat transactions
 
 *Admin Commands:*
 • /disconnect - Disconnect the bot (admin or bot number only)
@@ -165,8 +170,8 @@ Need help? Just type /help anytime!`;
 🟢 Status: ${botState.status}
 ✅ Ready: ${botState.isReady ? 'Yes' : 'No'}
 📱 Connected: ${botState.isReady ? 'Yes' : 'No'}
-💰 Wallet Active: Yes
-🔗 Blockchain Server: ${this.blockchainService.getServerUrl()}
+💰 User Account Active: Yes
+🔗 Backend Server: ${this.backendService.getServerUrl()}
 
 The bot is currently ${botState.isReady ? 'online and ready to help!' : 'connecting...'}`;
   }
@@ -181,7 +186,7 @@ Features:
 • Real-time messaging
 • Command system
 • Status monitoring
-• Wallet integration ✅
+• User account integration ✅
 • Contact management ✅
 • USDC payments ✅
 • Vault deposits ✅
@@ -190,29 +195,29 @@ Features:
 This bot is built with Node.js and Express, designed to provide a seamless WhatsApp experience with blockchain wallet capabilities.`;
   }
 
-  async handleCreateWallet(whatsappNumber, contact, userId) {
-    // Try to register user with blockchain server
-    const registration = await this.blockchainService.registerUser(whatsappNumber, contact.pushname);
-    const wallet = this.walletService.getWallet(userId);
+  async handleRegisterUser(whatsappNumber, contact, userId) {
+    // Try to register user with backend server
+    const registration = await this.backendService.registerUser(whatsappNumber, contact.pushname);
+    const user = this.backendService.getUser(userId);
     
-    return `✅ *Wallet Created Successfully!*
+    return `✅ *User Account Created Successfully!*
 
 💰 Initial Balance: 1,000 USDC
-📅 Created: ${wallet.createdAt}
-🆔 Wallet ID: ${userId.slice(0, 8)}...
-🔗 Blockchain: ${registration ? 'Connected' : 'Local Only'}
+📅 Created: ${user.createdAt}
+🆔 User ID: ${userId.slice(0, 8)}...
+🔗 Backend: ${registration ? 'Connected' : 'Local Only'}
 
-Your wallet is now ready for transactions!
+Your account is now ready for transactions!
 Use /balance to check your balance or /help for more commands.`;
   }
 
   handleBalance(userId) {
-    const wallet = this.walletService.getWallet(userId);
-    return `💰 *Wallet Balance*
+    const user = this.backendService.getUser(userId);
+    return `💰 *User Balance*
 
-💎 Current Balance: ${wallet.balance} USDC
-📊 Total Transactions: ${wallet.transactions.length}
-📅 Last Activity: ${wallet.transactions.length > 0 ? wallet.transactions[wallet.transactions.length - 1].timestamp : 'No transactions yet'}
+💎 Current Balance: ${user.balance} USDC
+📊 Total Transactions: ${user.transactions.length}
+📅 Last Activity: ${user.transactions.length > 0 ? user.transactions[user.transactions.length - 1].timestamp : 'No transactions yet'}
 
 Use /pay, /buy, /sell, /deposit, or /withdraw to manage your USDC!`;
   }
@@ -237,8 +242,8 @@ Please provide both amount and recipient number.`;
 Please provide a valid positive number for the payment amount.`;
     }
     
-    if (!this.walletService.hasSufficientBalance(userId, amount)) {
-      const balance = this.walletService.getBalance(userId);
+    if (!this.backendService.hasSufficientBalance(userId, amount)) {
+      const balance = this.backendService.getBalance(userId);
       return `❌ *Insufficient Balance*
 
 Your balance: ${balance} USDC
@@ -249,8 +254,8 @@ You don't have enough USDC for this payment.`;
     
     try {
       // Transfer funds
-      this.walletService.transferFunds(userId, recipient, amount);
-      const newBalance = this.walletService.getBalance(userId);
+      this.backendService.transferFunds(userId, recipient, amount);
+      const newBalance = this.backendService.getBalance(userId);
       
       return `✅ *Payment Successful!*
 
@@ -287,8 +292,8 @@ Please provide a valid positive number for the purchase amount.`;
     }
     
     try {
-      this.walletService.addFunds(userId, amount, 'buy');
-      const newBalance = this.walletService.getBalance(userId);
+      this.backendService.addFunds(userId, amount, 'buy');
+      const newBalance = this.backendService.getBalance(userId);
       
       return `✅ *Purchase Successful!*
 
@@ -323,8 +328,8 @@ Please provide the amount you want to sell.`;
 Please provide a valid positive number for the sell amount.`;
     }
     
-    if (!this.walletService.hasSufficientBalance(userId, amount)) {
-      const balance = this.walletService.getBalance(userId);
+    if (!this.backendService.hasSufficientBalance(userId, amount)) {
+      const balance = this.backendService.getBalance(userId);
       return `❌ *Insufficient Balance*
 
 Your balance: ${balance} USDC
@@ -334,8 +339,8 @@ You don't have enough USDC to sell.`;
     }
     
     try {
-      this.walletService.removeFunds(userId, amount, 'sell');
-      const newBalance = this.walletService.getBalance(userId);
+      this.backendService.removeFunds(userId, amount, 'sell');
+      const newBalance = this.backendService.getBalance(userId);
       
       return `✅ *Sale Successful!*
 
@@ -370,8 +375,8 @@ Please provide the amount you want to deposit to the vault.`;
 Please provide a valid positive number for the deposit amount.`;
     }
     
-    if (!this.walletService.hasSufficientBalance(userId, amount)) {
-      const balance = this.walletService.getBalance(userId);
+    if (!this.backendService.hasSufficientBalance(userId, amount)) {
+      const balance = this.backendService.getBalance(userId);
       return `❌ *Insufficient Balance*
 
 Your balance: ${balance} USDC
@@ -381,8 +386,8 @@ You don't have enough USDC to deposit.`;
     }
     
     try {
-      this.walletService.removeFunds(userId, amount, 'vault_deposit');
-      const newBalance = this.walletService.getBalance(userId);
+      this.backendService.removeFunds(userId, amount, 'vault_deposit');
+      const newBalance = this.backendService.getBalance(userId);
       
       return `✅ *Vault Deposit Successful!*
 
@@ -419,8 +424,8 @@ Please provide a valid positive number for the withdraw amount.`;
     }
     
     try {
-      this.walletService.addFunds(userId, amount, 'vault_withdraw');
-      const newBalance = this.walletService.getBalance(userId);
+      this.backendService.addFunds(userId, amount, 'vault_withdraw');
+      const newBalance = this.backendService.getBalance(userId);
       
       return `✅ *Vault Withdrawal Successful!*
 
@@ -599,7 +604,7 @@ But I don't understand what you mean 🙃
 
 I'm a smart wallet bot! Try these commands:
 • /help - See all available commands
-• /create - Create your wallet
+• /register - Register your account
 • /balance - Check your balance
 • /pay <amount> <recipient> - Send USDC
 • /buy <amount> - Buy USDC
