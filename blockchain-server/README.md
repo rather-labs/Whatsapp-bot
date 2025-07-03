@@ -7,7 +7,7 @@ A comprehensive blockchain server that provides user management, wallet function
 ### 🔐 User Management
 - User registration and authentication
 - JWT-based authentication
-- Password hashing with bcrypt
+- Numeric PIN authentication (4-6 digits)
 - User profiles with risk and auth levels
 
 ### 💰 Wallet System
@@ -84,8 +84,7 @@ Register a new user with wallet creation.
 {
   "whatsapp_number": "1234567890",
   "username": "john_doe",
-  "email": "john@example.com",
-  "password": "secure_password"
+  "pin": 1234
 }
 ```
 
@@ -105,7 +104,7 @@ Authenticate user and get JWT token.
 ```json
 {
   "whatsapp_number": "1234567890",
-  "password": "secure_password"
+  "pin": 1234
 }
 ```
 
@@ -139,7 +138,6 @@ Authorization: Bearer <jwt_token>
   "id": "uuid",
   "whatsapp_number": "1234567890",
   "username": "john_doe",
-  "email": "john@example.com",
   "wallet_address": "0x...",
   "risk_profile": "moderate",
   "auth_profile": "basic",

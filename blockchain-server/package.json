@@ -17,7 +17,7 @@
     "ethers": "^6.8.1",
     "axios": "^1.6.0",
     "uuid": "^9.0.1",
-    "bcryptjs": "^2.4.3",
+
     "jsonwebtoken": "^9.0.2",
     "helmet": "^7.1.0",
     "express-rate-limit": "^7.1.5",
