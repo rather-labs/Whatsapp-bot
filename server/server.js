@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { ecb } = require('@noble/ciphers/aes');
 const axios = require('axios');
-const { constants } = require('buffer');
+const { constants } = require('node:buffer');
 require('dotenv').config();
 
 const app = express();
@@ -51,6 +51,7 @@ function initializeDatabase() {
       auth_profile INTEGER DEFAULT 1,
       wallet_balance REAL DEFAULT 0,
       vault_balance REAL DEFAULT 0,
+      last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -149,10 +150,85 @@ function generateWallet() {
   };
 }
 
+// Session management functions
+const updateUserActivity = (whatsappNumber) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
+      [whatsappNumber],
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
+    );
+  });
+};
+
+function isSessionExpired(lastActivity) {
+  if (!lastActivity) return true;
+  
+  const lastActivityTime = new Date(lastActivity);
+  const currentTime = new Date();
+  const timeDifference = currentTime - lastActivityTime;
+  const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+  
+  return timeDifference > fiveMinutes;
+}
+
+function getUserSessionStatus(whatsappNumber) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT last_activity FROM users WHERE whatsapp_number = ?',
+      [whatsappNumber],
+      (err, user) => {
+        if (err) {
+          reject(err);
+        } else if (!user) {
+          resolve({ exists: false, expired: true });
+        } else {
+          const expired = isSessionExpired(user.last_activity);
+          resolve({ exists: true, expired, lastActivity: user.last_activity });
+        }
+      }
+    );
+  });
+}
+
+// Enhanced session management with PIN validation
+function validateUserPin(whatsappNumber, pin) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT encrypted_pin FROM users WHERE whatsapp_number = ?',
+      [whatsappNumber],
+      (err, user) => {
+        if (err) {
+          reject(err);
+        } else if (!user) {
+          resolve({ valid: false, message: 'User not found' });
+        } else {
+          try {
+            const decryptedPin = decryptUserPin(user.encrypted_pin, process.env.JWT_SECRET || 'your-secret-key');
+            const isValid = decryptedPin === pin;
+            resolve({ 
+              valid: isValid, 
+              message: isValid ? 'PIN validated successfully' : 'Invalid PIN' 
+            });
+          } catch (error) {
+            reject(error);
+          }
+        }
+      }
+    );
+  });
+}
+
 // Authentication middleware
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
@@ -213,7 +289,7 @@ app.post('/api/users/register', async (req, res) => {
       db.run(
         'INSERT INTO users (whatsapp_number, username, encrypted_pin, wallet_address, wallet_balance, vault_balance) VALUES (?, ?, ?, ?, ?, ?)',
         [whatsapp_number, username, encryptedPin, wallet_address, 0, 0], 
-        function(err) {
+        (err) => {
           if (err) {
             return res.status(500).json({ error: 'Failed to create user' });
           }
@@ -267,6 +343,13 @@ app.post('/api/users/login', (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Update last activity
+    try {
+      await updateUserActivity(whatsapp_number);
+    } catch (error) {
+      console.error('Error updating user activity:', error);
+    }
+
     const token = jwt.sign(
       { whatsappNumber: user.whatsapp_number },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -283,6 +366,156 @@ app.post('/api/users/login', (req, res) => {
       }
     });
   });
+});
+
+// Check session status and update activity
+app.post('/api/users/session/check', async (req, res) => {
+  try {
+    const { whatsapp_number } = req.body;
+    
+    if (!whatsapp_number) {
+      return res.status(400).json({ error: 'WhatsApp number is required' });
+    }
+
+    const sessionStatus = await getUserSessionStatus(whatsapp_number);
+    
+    if (!sessionStatus.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update activity if session is not expired
+    if (!sessionStatus.expired) {
+      await updateUserActivity(whatsapp_number);
+    }
+
+    res.json({
+      exists: sessionStatus.exists,
+      expired: sessionStatus.expired,
+      lastActivity: sessionStatus.lastActivity
+    });
+  } catch (error) {
+    console.error('Session check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user activity (called when user interacts)
+app.post('/api/users/session/update', async (req, res) => {
+  try {
+    const { whatsapp_number } = req.body;
+    
+    if (!whatsapp_number) {
+      return res.status(400).json({ error: 'WhatsApp number is required' });
+    }
+
+    await updateUserActivity(whatsapp_number);
+    
+    res.json({
+      message: 'Activity updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Activity update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Enhanced session management - Check session and handle PIN validation
+app.post('/api/users/session/validate', async (req, res) => {
+  try {
+    const { whatsapp_number, pin } = req.body;
+    
+    if (!whatsapp_number) {
+      return res.status(400).json({ error: 'WhatsApp number is required' });
+    }
+
+    const sessionStatus = await getUserSessionStatus(whatsapp_number);
+    
+    if (!sessionStatus.exists) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        requiresRegistration: true 
+      });
+    }
+
+    // If session is expired and PIN is provided, validate it
+    if (sessionStatus.expired && pin) {
+      const pinValidation = await validateUserPin(whatsapp_number, pin);
+      
+      if (pinValidation.valid) {
+        // PIN is correct, update activity and restore session
+        await updateUserActivity(whatsapp_number);
+        return res.json({
+          success: true,
+          message: 'PIN validated successfully',
+          sessionRestored: true,
+          requiresPin: false
+        });
+      }
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid PIN',
+        requiresPin: true,
+        sessionExpired: true
+      });
+    }
+
+    // If session is expired and no PIN provided, prompt for PIN
+    if (sessionStatus.expired) {
+      return res.json({
+        success: false,
+        message: 'Session expired, PIN required',
+        requiresPin: true,
+        sessionExpired: true
+      });
+    }
+
+    // Session is valid, update activity
+    await updateUserActivity(whatsapp_number);
+    
+    return res.json({
+      success: true,
+      message: 'Session is valid',
+      requiresPin: false,
+      sessionExpired: false
+    });
+  } catch (error) {
+    console.error('Session validation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get comprehensive session status
+app.get('/api/users/session/status/:whatsapp_number', async (req, res) => {
+  try {
+    const { whatsapp_number } = req.params;
+    
+    if (!whatsapp_number) {
+      return res.status(400).json({ error: 'WhatsApp number is required' });
+    }
+
+    const sessionStatus = await getUserSessionStatus(whatsapp_number);
+    
+    if (!sessionStatus.exists) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        exists: false,
+        requiresRegistration: true 
+      });
+    }
+
+    res.json({
+      exists: true,
+      expired: sessionStatus.expired,
+      lastActivity: sessionStatus.lastActivity,
+      requiresPin: sessionStatus.expired,
+      requiresRegistration: false
+    });
+  } catch (error) {
+    console.error('Session status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get user profile
@@ -622,8 +855,8 @@ app.post('/api/vault/withdraw', authenticateToken, async (req, res) => {
 
 // Get transaction history
 app.get('/api/transactions', authenticateToken, (req, res) => {
-  const limit = parseInt(req.query.limit) || 10;
-  const offset = parseInt(req.query.offset) || 0;
+  const limit = Number.parseInt(req.query.limit) || 10;
+  const offset = Number.parseInt(req.query.offset) || 0;
 
   db.all(
     'SELECT * FROM transactions WHERE user_whatsapp_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
@@ -666,7 +899,7 @@ app.post('/api/contacts', authenticateToken, (req, res) => {
   db.run(
     'INSERT INTO contacts (id, user_whatsapp_number, name, contact_userid) VALUES (?, ?, ?, ?)',
     [contactId, req.user.whatsappNumber, name, contact_userid],
-    function(err) {
+    (err) => {
       if (err) {
         if (err.code === 'SQLITE_CONSTRAINT') {
           return res.status(409).json({ error: 'Contact already exists' });
@@ -778,7 +1011,7 @@ app.post('/api/users/risk-profile', authenticateToken, (req, res) => {
   db.run(
     'UPDATE users SET risk_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
     [Number.parseInt(risk_profile), req.user.whatsappNumber],
-    function(err) {
+    (err) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
@@ -801,7 +1034,7 @@ app.post('/api/users/auth-profile', authenticateToken, (req, res) => {
   db.run(
     'UPDATE users SET auth_profile = ?, updated_at = CURRENT_TIMESTAMP WHERE whatsapp_number = ?',
     [Number.parseInt(auth_profile), req.user.whatsappNumber],
-    function(err) {
+    (err) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
@@ -829,7 +1062,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 Network: ${networkConfig.name}`);
-  console.log(`💾 Database: SQLite`);
+  console.log("💾 Database: SQLite");
 });
 
 // Graceful shutdown

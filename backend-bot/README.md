@@ -30,7 +30,7 @@ A WhatsApp bot built with Node.js and whatsapp-web.js that includes wallet funct
 - Express.js REST API
 - Socket.IO for real-time communication
 - QR code authentication
-- Persistent session management
+- **Simplified session management** (delegates to server)
 - Graceful shutdown handling
 - Modular service architecture
 
@@ -111,17 +111,19 @@ The bot is built with a clean, modular architecture:
 
 #### Services Layer (`/services/`)
 - **ConnectionManager.js** - WhatsApp client connection/disconnection logic
-- **BackendService.js** - User operations and backend integration
+- **BackendService.js** - User operations and backend integration (simplified session management)
+- **SessionManager.js** - PIN prompting only (delegates session logic to server)
 
 #### Handlers Layer (`/handlers/`)
-- **MessageHandler.js** - Message processing and command handling
+- **MessageHandler.js** - Message processing and command handling (simplified session handling)
 
 #### Routes Layer (`/routes/`)
 - **ApiRoutes.js** - API endpoints and routes
 
 ### User System
-The bot includes a simulated user system that:
+The bot includes a user system that:
 - Automatically registers users for new accounts
+- **Delegates session management to server**
 - Tracks balances and transaction history
 - Supports peer-to-peer transfers
 - Simulates buy/sell operations
@@ -145,9 +147,10 @@ The bot includes a simulated user system that:
 backend-bot/
 ├── services/
 │   ├── ConnectionManager.js    # WhatsApp client management
-│   └── BackendService.js       # User operations and backend integration
+│   ├── BackendService.js       # User operations and backend integration (simplified session management)
+│   └── SessionManager.js       # PIN prompting only (delegates session logic to server)
 ├── handlers/
-│   └── MessageHandler.js       # Message processing
+│   └── MessageHandler.js       # Message processing (simplified session handling)
 ├── routes/
 │   └── ApiRoutes.js           # API endpoints
 ├── server.js                  # Main server file
@@ -170,6 +173,28 @@ backend-bot/
 - **Testability**: Each module can be tested independently
 - **Maintainability**: Easy to modify or extend individual components
 - **Scalability**: Simple to add new features
+- **Centralized Session Management**: Session logic delegated to server for better security and scalability
+
+## Session Management
+
+The bot has been refactored to use **centralized session management**:
+
+### Architecture
+- **Server-Centric**: All session logic is handled by the server component
+- **Simplified Bot**: Backend-bot only handles PIN prompting locally
+- **Enhanced Security**: PIN validation happens on the server
+
+### How It Works
+1. **Session Validation**: Bot queries server for session status
+2. **PIN Prompting**: Only prompts for PIN when session expires
+3. **Server Validation**: PIN is validated by server, not locally
+4. **Activity Updates**: Server tracks all user activity
+
+### Benefits
+- **Better Security**: PIN validation centralized on server
+- **Reduced Complexity**: Less local state to manage
+- **Improved Scalability**: Server can handle multiple bot instances
+- **Memory Efficiency**: Reduced memory usage in bot
 
 ## Security Notes
 

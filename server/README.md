@@ -9,6 +9,8 @@ A comprehensive backend server that provides user management, wallet functionali
 - JWT-based authentication
 - Numeric PIN authentication (4-6 digits)
 - User profiles with risk and auth levels
+- **Centralized session management** with 5-minute inactivity timeout
+- PIN-based session restoration
 
 ### 💰 Wallet System
 - Automatic wallet generation for new users
@@ -36,6 +38,8 @@ A comprehensive backend server that provides user management, wallet functionali
 - Input validation
 - Encrypted private key storage
 - JWT token management
+- **Centralized PIN validation** for session restoration
+- **Session expiration handling** with automatic cleanup
 
 ## Installation
 
@@ -152,6 +156,63 @@ Update user risk profile (requires authentication).
 ```json
 {
   "risk_profile": "high"
+}
+```
+
+### Session Management
+
+#### POST `/api/users/session/validate`
+Comprehensive session validation with PIN handling.
+
+**Request Body:**
+```json
+{
+  "whatsapp_number": "1234567890",
+  "pin": 1234  // Optional - only required if session expired
+}
+```
+
+**Response (Valid Session):**
+```json
+{
+  "success": true,
+  "message": "Session is valid",
+  "requiresPin": false,
+  "sessionExpired": false
+}
+```
+
+**Response (Expired Session, No PIN):**
+```json
+{
+  "success": false,
+  "message": "Session expired, PIN required",
+  "requiresPin": true,
+  "sessionExpired": true
+}
+```
+
+**Response (Invalid PIN):**
+```json
+{
+  "success": false,
+  "message": "Invalid PIN",
+  "requiresPin": true,
+  "sessionExpired": true
+}
+```
+
+#### GET `/api/users/session/status/:whatsapp_number`
+Get detailed session status for a user.
+
+**Response:**
+```json
+{
+  "exists": true,
+  "expired": false,
+  "lastActivity": "2024-01-01T12:00:00.000Z",
+  "requiresPin": false,
+  "requiresRegistration": false
 }
 ```
 

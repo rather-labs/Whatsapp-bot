@@ -71,9 +71,13 @@ npm start
 - `/help` - Show all available commands
 - `/status` - Check bot connection status
 - `/info` - Get bot information
+- `/session` - Check your session status
+
+### User Registration & Authentication
+- `/register` - Register a new user account (requires PIN)
+- **Session Management**: Automatic PIN prompting when session expires (5-minute inactivity)
 
 ### Wallet Commands
-- `/create` - Create a new wallet
 - `/balance` - Check your USDC balance
 - `/pay <amount> <recipient>` - Send USDC to another user
 - `/buy <amount>` - Buy USDC tokens
@@ -88,7 +92,7 @@ npm start
 - `/authprofile` - Check authentication level
 
 ### Contact Commands
-- `/contacts` - View your WhatsApp contacts
+- Share contacts - Bot automatically parses vCard information
 
 ## 🔧 Configuration
 
@@ -134,10 +138,13 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:3002
 
 ### Server (Port 3002)
 
-#### Authentication
+#### Authentication & Session Management
 - `POST /api/users/register` - Register new user
 - `POST /api/users/login` - User login
 - `GET /api/users/profile` - Get user profile
+- `POST /api/users/session/validate` - Comprehensive session validation with PIN handling
+- `GET /api/users/session/status/:whatsapp_number` - Get detailed session status
+- `POST /api/users/session/update` - Update user activity (legacy)
 
 #### Wallet Operations
 - `GET /api/wallet/balance` - Get wallet balance
@@ -166,7 +173,7 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:3002
 
 The server uses SQLite with the following tables:
 
-- **users** - User accounts and profiles
+- **users** - User accounts and profiles (includes `last_activity` for session management)
 - **wallets** - Wallet addresses and balances
 - **transactions** - Transaction history
 - **vault_deposits** - Vault deposit records
@@ -175,6 +182,8 @@ The server uses SQLite with the following tables:
 
 ### Server
 - JWT-based authentication
+- Session management with 5-minute inactivity timeout
+- PIN-based authentication for session restoration
 - Password hashing with bcrypt
 - Rate limiting
 - Helmet security headers
@@ -183,9 +192,46 @@ The server uses SQLite with the following tables:
 
 ### WhatsApp Bot
 - Secure WhatsApp Web integration
+- Simplified session management (delegates to server)
+- PIN prompting only when session expires
 - Message validation
 - Error handling
 - Contact management
+
+## 🔐 Session Management
+
+The system features **centralized session management** with intelligent PIN handling that enhances security while improving user experience:
+
+### Architecture
+- **Server-Centric**: All session logic is centralized in the server component
+- **Backend-Bot Simplified**: Only handles PIN prompting locally, delegates all session logic to server
+- **Database-Driven**: Session state stored securely in database with `last_activity` tracking
+
+### How It Works
+1. **Centralized Session Tracking**: Server manages all session state and activity
+2. **5-Minute Inactivity Timeout**: Sessions expire after 5 minutes of no activity
+3. **Smart PIN Prompting**: Users are only prompted for PIN when session expires
+4. **Seamless Restoration**: Correct PIN immediately restores the session via server validation
+
+### User Experience
+- **No Constant PIN Entry**: Users don't need to enter PIN for every command
+- **Automatic Activity Updates**: Any message or command resets the session timer
+- **Clear Session Status**: Use `/session` command to check current session status
+- **Graceful Expiration**: Clear messaging when session expires
+
+### Security Benefits
+- **Reduced PIN Exposure**: PIN is only entered when necessary
+- **Centralized Security**: All PIN validation happens on the server
+- **Automatic Logout**: Sessions expire automatically for security
+- **Activity Tracking**: Database stores last activity timestamps
+- **Token Management**: Automatic token refresh and cleanup
+
+### Technical Implementation
+- **Server Endpoints**: `/api/users/session/validate` and `/api/users/session/status/:whatsapp_number`
+- **BackendService**: Simplified to only query server for session status
+- **SessionManager**: Streamlined to handle only PIN prompting locally
+- **Database Integration**: `last_activity` column tracks user activity
+- **Automatic Integration**: All commands automatically update session activity
 
 ## 🏦 Vault System
 
@@ -242,10 +288,15 @@ The vault system allows users to:
 whatsapp-base-bot-smart-wallet/
 ├── backend-bot/           # WhatsApp bot server
 │   ├── server.js         # Main bot server
+│   ├── handlers/
+│   │   └── MessageHandler.js  # Message processing with simplified session handling
+│   ├── services/
+│   │   ├── BackendService.js  # Backend API integration (simplified session management)
+│   │   └── SessionManager.js  # PIN prompting only (delegates session logic to server)
 │   ├── package.json      # Bot dependencies
 │   └── README.md         # Bot documentation
-├── server/               # Server
-│   ├── server.js         # Main server
+├── server/               # Server (centralized session management)
+│   ├── server.js         # Main server with enhanced session endpoints
 │   ├── package.json      # Server dependencies
 │   ├── env.example       # Environment template
 │   └── README.md         # Server documentation
@@ -285,6 +336,44 @@ For issues and questions:
 4. Verify environment configuration
 5. Create an issue on GitHub
 
+### Session Management Troubleshooting
+
+**Session not expiring:**
+- Check if `last_activity` column exists in database
+- Verify server is running and accessible
+- Check network connectivity between bot and server
+
+**PIN not working:**
+- Ensure PIN format is 4-6 digits
+- Verify user is registered in the system
+- Check server logs for authentication errors
+
+**Activity not updating:**
+- Verify API endpoints are accessible
+- Check server logs for session update errors
+- Ensure bot has proper permissions
+
+**Session status unclear:**
+- Use `/session` command to check current status
+- Check server logs for session operations
+- Verify database connection is working
+
+## 🔄 Recent Updates
+
+### Session Management Refactoring (Latest)
+- ✅ **Centralized Session Management**: All session logic moved to server component
+- ✅ **Simplified Backend-Bot**: Removed local session state, only handles PIN prompting
+- ✅ **Enhanced Server APIs**: New `/api/users/session/validate` and `/api/users/session/status/:whatsapp_number` endpoints
+- ✅ **Improved Security**: PIN validation centralized on server
+- ✅ **Better Scalability**: Server can handle multiple bot instances
+- ✅ **Reduced Memory Usage**: Less local state to maintain in backend-bot
+
+### Security Improvements
+- ✅ **Reduced PIN Exposure**: PIN only entered when necessary
+- ✅ **Automatic Session Cleanup**: Expired sessions are properly handled
+- ✅ **Activity Tracking**: Database stores user activity timestamps
+- ✅ **Graceful Error Handling**: Clear messaging for session issues
+
 ## 🔮 Future Enhancements
 
 - [ ] Multi-token support (ETH, MATIC, etc.)
@@ -295,3 +384,5 @@ For issues and questions:
 - [ ] Cross-chain transactions
 - [ ] Advanced security features (2FA, hardware wallets)
 - [ ] Analytics and reporting
+- [ ] Configurable session timeouts per user
+- [ ] Session history and analytics

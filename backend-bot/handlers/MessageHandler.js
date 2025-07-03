@@ -1,7 +1,10 @@
+const SessionManager = require('../services/SessionManager');
+
 class MessageHandler {
   constructor(connectionManager, backendService) {
     this.connectionManager = connectionManager;
     this.backendService = backendService;
+    this.sessionManager = new SessionManager(backendService);
   }
 
   // Main message processing function
@@ -17,6 +20,22 @@ class MessageHandler {
     if (message.type === 'vcard') {
       return this.handleVCardMessage(message.body);
     }
+
+    // Check if user is awaiting PIN input
+    if (this.sessionManager.isAwaitingPin(whatsappNumber)) {
+      // Handle PIN input
+      const pinResult = await this.sessionManager.handlePinInput(whatsappNumber, text);
+      return pinResult.message;
+    }
+
+    // Check session status and handle expiration
+    const sessionResult = await this.sessionManager.checkAndHandleSession(whatsappNumber, contact);
+    if (sessionResult.requiresPin) {
+      return sessionResult.message;
+    }
+
+    // Update user activity for valid session
+    await this.sessionManager.updateActivity(whatsappNumber);
     
     // Handle different commands
     const response = await this.processCommand(text, message, contact, userId, whatsappNumber);
@@ -84,6 +103,11 @@ class MessageHandler {
       return this.getAuthProfileMessage();
     }
     
+    // Session commands
+    if (text === '/session') {
+      return await this.handleSessionStatus(whatsappNumber);
+    }
+    
     // Admin commands
     if (text === '/disconnect') {
       return await this.handleDisconnect(message, whatsappNumber);
@@ -127,6 +151,7 @@ I can also parse vCard contact information when you share contacts! 📇`;
 • /help - Show this help message
 • /status - Check bot status
 • /info - Get information about this bot
+• /session - Check your session status
 
 *User Commands:*
 • /register - Register a new user account
@@ -611,11 +636,42 @@ I'm a smart wallet bot! Try these commands:
 • /sell <amount> - Sell USDC
 • /deposit <amount> - Deposit to vault
 • /withdraw <amount> - Withdraw from vault
+• /session - Check session status
 • /disconnect - Disconnect bot (admin or bot number only)
 
 I can also parse contact information when you share contacts! 📇
 
 Or just say hello! 😊`;
+  }
+
+  // Handle session status command
+  async handleSessionStatus(whatsappNumber) {
+    try {
+      const sessionInfo = await this.sessionManager.getSessionInfo(whatsappNumber);
+      
+      if (!sessionInfo) {
+        return "📊 *Session Status*\n\n❌ No active session\n\nYou need to register first with /register";
+      }
+
+      if (!sessionInfo.exists) {
+        return "📊 *Session Status*\n\n❌ User not registered\n\nYou need to register first with /register";
+      }
+
+      const status = sessionInfo.expired ? '🔴 Expired' : '🟢 Active';
+      const pinStatus = sessionInfo.pendingPin ? '🟡 Awaiting PIN' : '✅ Ready';
+      const lastActivity = sessionInfo.lastActivity ? new Date(sessionInfo.lastActivity).toLocaleString() : 'Never';
+      
+      return `📊 *Session Status*
+
+Status: ${status}
+PIN Status: ${pinStatus}
+Last Activity: ${lastActivity}
+
+${sessionInfo.expired ? 'Your session has expired. Please enter your PIN to continue.' : 'Your session is active and ready to use!'}`;
+    } catch (error) {
+      console.error('Error getting session status:', error);
+      return "📊 *Session Status*\n\n❌ Error retrieving session status\n\nPlease try again or contact support.";
+    }
   }
 }
 
