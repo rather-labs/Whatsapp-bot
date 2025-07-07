@@ -1,55 +1,27 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { baseSepolia } from 'viem/chains';
-import { encodeFunctionData, decodeFunctionData, parseAbi } from 'viem';
+import { maxUint256 } from 'viem';
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
-import { usePublicClient } from 'wagmi';
+import { usePublicClient, useAccount } from 'wagmi';
+import { useSignature } from '../context/SignatureContext';
 
-type EIP712Message = {
-  from: `0x${string}`;
-  fromWhatsapp: string;
-  to: `0x${string}`;
-  toWhatsapp: string;
-  toWhatsappName: string;
-  value: number;
-  gas: number;
-  nonce: number;
-  data: `0x${string}`;
-};
+export default function SignPermit() {
+  const { signature, setSignature, setIsSignatureValid, disabled, setDisabled } = useSignature();
+  const { address } = useAccount();
+  const [nonce, setNonce] = useState<number>(0);
 
-function formatMessage(message: EIP712Message) {
-  const data = decodeFunctionData({
-    abi: parseAbi(['function transfer(address to,uint256 amount)']),
-    data: message.data
-  });
-  if (data.functionName === 'transfer') { 
-    return `Sign to transfer ${data.args[1]} USDC
-From ${message.fromWhatsapp} 
-To ${message.toWhatsappName ? message.toWhatsappName  : message.toWhatsapp} ${message.toWhatsappName ? `(${message.toWhatsapp})` : ''}
-`;
-  } 
-  throw new Error('Unrecognized function name');
-}
-
-export default function SignEIP712() {
-
-  const userAddress = '0x59EE67662D98e31628ea4ce3718707C881B04Cc9' as `0x${string}`
-  const vaultAddress = '0x59EE67662D98e31628ea4ce3718707C881B04Cc9' as `0x${string}`
-  const tokenAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`
+  const userAddress = address as `0x${string}`;
+  const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`
+  const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`
 
   const client = usePublicClient();
 
-  // encode the contract call
-  const data = encodeFunctionData({
-    abi: parseAbi(['function transfer(address to,uint256 amount)']),
-    functionName: 'transfer',
-    args: [userAddress, BigInt(10)]
-  });
-
+  console.log('address', address);
+  console.log('client.chain.id', client.chain.id);
   const domain = {
-    name: 'Whatsapp Bot Base',
-    version: '1.0.0',
-    chainId: baseSepolia.id,
+    name: 'USD Coin',
+    version: '2',
+    chainId: client.chain.id,
     verifyingContract: tokenAddress,
   };
   
@@ -66,43 +38,77 @@ export default function SignEIP712() {
   const message = { 
     owner: userAddress, 
     spender: vaultAddress, 
-    value: 1000000000000000000, 
-    nonce:1,
-    deadline: 1714953600,
-    };
-
-
-  const [signature, setSignature] = useState<string | null>(null);
-  const [status, setStatus] = useState<LifecycleStatus | null>(null);
+    value: maxUint256, 
+    nonce,
+    deadline: maxUint256,
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Message rerenders and should not be used
   useEffect(() => {
     if (signature && client && message) {
-      const isValid = client.verifyTypedData({
-        address: userAddress,
-        signature: signature as `0x${string}`,
-        primaryType: 'Permit',
-        message,
-        types,
-      }); 
-      console.log(isValid);
-  }
-  }, [signature, client]);
+      const verifySignature = async () => {
+        try {
+          const isValid = await client.verifyTypedData({
+            address: userAddress,
+            signature: signature as `0x${string}`,
+            primaryType: 'Permit',
+            message,
+            types,
+          }); 
+          console.log('Signature validation result:', isValid);
+          setIsSignatureValid(isValid);
+        } catch (error) {
+          console.error('Error verifying signature:', error);
+          setIsSignatureValid(false);
+        }
+      };
+      verifySignature();
+    }
+  }, [signature, client, setIsSignatureValid]);
+
+  useEffect(() => {
+    const getNonce = async () => {
+      if (!client) return;
+      // Get nonce from Token address
+      const nonce = await client.readContract({
+        address: tokenAddress,
+        abi: [{ 
+          name: "nonces", 
+          type: "function", 
+          stateMutability: "view",
+          inputs: [{ type: "address" }], 
+          outputs: [{ type: "uint256" }] 
+          }],
+        functionName: "nonces",
+        args: [userAddress],
+      });
+      setNonce(Number(nonce));
+      console.log('nonce', nonce);
+    }
+    getNonce();
+  }, [client, tokenAddress, userAddress]);
+
+  const handleSignatureSuccess = (newSignature: string) => {
+    setSignature(newSignature);
+  };
+
+  const handleStatusChange = (newStatus: LifecycleStatus) => {
+    setDisabled(newStatus.statusName === 'success');
+  };
 
   return (
-    <div>
+    <div className="w-full">
       <Signature
         domain={domain}
         types={types}
         primaryType="Permit"
-        message={formatMessage(message)}
+        message={"Sign permit to allow the service to manage assets"}
         label="Sign token permit"
-        onSuccess={(signature: string) => setSignature(signature)}
-        onStatus={(status: LifecycleStatus) => setStatus(status)}
+        onSuccess={handleSignatureSuccess}
+        onStatus={handleStatusChange}
         className="custom-class"
-        disabled={status?.statusName === 'success'}
+        disabled={disabled}
       />
-      <p>{signature}</p>
     </div>
   );
-}
+} 

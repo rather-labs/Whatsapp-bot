@@ -1,27 +1,52 @@
-const { createPublicClient, http, createWalletClient, custom } = require('viem');
+const { createPublicClient, http, createWalletClient, custom, defineChain } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
-const { sepolia, polygon } = require('viem/chains');
+const { base, baseSepolia } = require('viem/chains');
+const TokenVaultWithRelayer = require('../utils/TokenVaultWithRelayer.json');
 require('dotenv').config();
+
+// Define Hardhat localhost chain
+const hardhat = defineChain({
+  id: 31337,
+  name: 'Hardhat Localhost',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ether',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: {
+      http: ['http://127.0.0.1:8545'],
+    },
+    public: {
+      http: ['http://127.0.0.1:8545'],
+    },
+  },
+});
 
 // Blockchain configuration
 const NETWORK_CONFIG = {
-  sepolia: {
-    rpc: process.env.SEPOLIA_RPC || 'https://sepolia.infura.io/v3/YOUR_PROJECT_ID',
-    chain: sepolia,
-    name: 'Sepolia Testnet'
+  baseSepolia: {
+    rpc: process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org',
+    chain: baseSepolia,
+    name: 'Base Sepolia Testnet'
   },
-  polygon: {
-    rpc: process.env.POLYGON_RPC || 'https://polygon-rpc.com',
-    chain: polygon,
-    name: 'Polygon Mainnet'
+  base: {
+    rpc: process.env.BASE_MAINNET_RPC || 'https://mainnet.base.org',
+    chain: base,
+    name: 'Base Mainnet'
+  },
+  hardhat: {
+    rpc: process.env.HARDHAT_RPC || 'http://127.0.0.1:8545',
+    chain: hardhat,
+    name: 'Hardhat Localhost'
   }
 };
 
-const currentNetwork = process.env.NETWORK || 'sepolia';
+const currentNetwork = process.env.NETWORK || 'baseSepolia';
 const networkConfig = NETWORK_CONFIG[currentNetwork];
 
-// USDC contract configuration
-const USDC_CONTRACT_ADDRESS = process.env.USDC_CONTRACT_ADDRESS || '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia USDC
+// USDC contract configuration - Base Sepolia USDC
+const USDC_CONTRACT_ADDRESS = process.env.USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7c'; // Base Sepolia USDC
 const USDC_ABI = [
   'function transfer(address to, uint256 amount) returns (bool)',
   'function balanceOf(address account) view returns (uint256)',
@@ -31,16 +56,7 @@ const USDC_ABI = [
 
 // Vault contract configuration
 const VAULT_CONTRACT_ADDRESS = process.env.VAULT_CONTRACT_ADDRESS;
-const VAULT_ABI = [
-  'function RegisterUser(uint256 user, address wallet, bytes calldata signature) external',
-  'function userAddresses(uint256) view returns (address)',
-  'function userRiskProfile(uint256) view returns (uint8)',
-  'function userAuthProfile(uint256) view returns (uint8)',
-  'function getUserAssets(uint256 user) external view returns (uint256)',
-  'function getNonce(uint256 user) external view returns (uint256)',
-  'function RELAYER_ROLE() view returns (bytes32)',
-  'function hasRole(bytes32 role, address account) view returns (bool)'
-];
+const VAULT_ABI = TokenVaultWithRelayer.abi;
 
 // Initialize public client
 let publicClient;

@@ -14,11 +14,12 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     console.log("Registering user");
-    const { whatsapp_number, username, pin, wallet_address } = req.body;
+    const { whatsapp_number, username, pin, wallet_address, permit } = req.body;
     console.log("Whatsapp number:", whatsapp_number);
     console.log("Username:", username);
     console.log("PIN:", pin);
     console.log("Wallet address:", wallet_address);
+    console.log("Permit:", permit);
     
     if (!whatsapp_number || !pin) {
       return res.status(400).json({ error: 'WhatsApp number and PIN are required' });
@@ -53,7 +54,7 @@ router.post('/register', async (req, res) => {
         console.log("🔄 Starting on-chain registration...");
         
         // Register user on-chain first
-        const onChainResult = await contractService.registerUserOnChain(whatsapp_number, wallet_address);
+        const onChainResult = await contractService.registerUserOnChain(whatsapp_number, wallet_address, permit);
         
         console.log("✅ On-chain registration successful:", onChainResult);
 
@@ -392,6 +393,44 @@ router.post('/auth-profile', authenticateToken, (req, res) => {
       });
     }
   );
+});
+
+// Check if user is registered on-chain
+router.get('/onchain-status/:whatsapp_number', async (req, res) => {
+  try {
+    const { whatsapp_number } = req.params;
+    
+    if (!whatsapp_number) {
+      return res.status(400).json({ error: 'WhatsApp number is required' });
+    }
+
+    const isRegistered = await contractService.isUserRegisteredOnChain(whatsapp_number);
+    
+    res.json({
+      whatsappNumber: whatsapp_number,
+      isRegisteredOnChain: isRegistered
+    });
+  } catch (error) {
+    console.error('Error checking on-chain status:', error);
+    res.status(500).json({ 
+      error: 'Failed to check on-chain status', 
+      details: error.message 
+    });
+  }
+});
+
+// Get network information
+router.get('/network-info', (req, res) => {
+  try {
+    const networkInfo = contractService.getNetworkInfo();
+    res.json(networkInfo);
+  } catch (error) {
+    console.error('Error getting network info:', error);
+    res.status(500).json({ 
+      error: 'Failed to get network info', 
+      details: error.message 
+    });
+  }
 });
 
 module.exports = router; 

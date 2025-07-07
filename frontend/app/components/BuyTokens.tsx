@@ -1,10 +1,12 @@
 "use client";
 import { Buy } from '@coinbase/onchainkit/buy'; 
 import type { Token } from '@coinbase/onchainkit/token';
-import { baseSepolia } from 'viem/chains';
+import { useChainId } from 'wagmi';
 
 
 export default function BuyTokens() { 
+  const chainId = useChainId();
+  
   const usdcToken: Token = {
     name: 'USDC',
     address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // USDC on Base Sepolia
@@ -12,7 +14,7 @@ export default function BuyTokens() {
     symbol: 'USDC',
     decimals: 18,
     image: 'usdc-icon.svg',
-    chainId: baseSepolia.id,
+    chainId: chainId,
   };
 
   return ( 

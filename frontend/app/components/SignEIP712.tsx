@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { baseSepolia } from 'viem/chains';
 import { encodeFunctionData, decodeFunctionData, parseAbi } from 'viem';
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
-import { usePublicClient } from 'wagmi';
+import { usePublicClient, useChainId } from 'wagmi';
 
 type EIP712Message = {
   from: `0x${string}`;
@@ -35,6 +34,7 @@ export default function SignEIP712() {
 
   const userAddress = '0x59EE67662D98e31628ea4ce3718707C881B04Cc9' as `0x${string}`
   const vaultAddress = '0x59EE67662D98e31628ea4ce3718707C881B04Cc9' as `0x${string}`
+  const chainId = useChainId();
 
   const client = usePublicClient();
 
@@ -48,7 +48,7 @@ export default function SignEIP712() {
   const domain = {
     name: 'Whatsapp Bot Base',
     version: '1.0.0',
-    chainId: baseSepolia.id,
+    chainId: chainId,
     verifyingContract: userAddress,
   };
   
@@ -101,7 +101,7 @@ export default function SignEIP712() {
         domain={domain}
         types={types}
         primaryType="ForwardRequest"
-        message={formatMessage(message)}
+        message={message}
         label="Sign EIP712"
         onSuccess={(signature: string) => setSignature(signature)}
         onStatus={(status: LifecycleStatus) => setStatus(status)}

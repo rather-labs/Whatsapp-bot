@@ -1,8 +1,7 @@
 const { createPublicClient, http, createWalletClient, custom, getContract, parseEther, formatEther, keccak256, toHex, stringToHex, getAddress } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
-const { sepolia, polygon } = require('viem/chains');
-const { publicClient, networkConfig } = require('../config/blockchain');
-const TokenVaultWithRelayer = require('../config/TokenVaultWithRelayer.json');
+const { base, baseSepolia } = require('viem/chains');
+const { publicClient, networkConfig, currentNetwork, VAULT_ABI } = require('../config/blockchain');
 
 class ContractService {
   constructor() {
@@ -11,7 +10,7 @@ class ContractService {
     
     // Vault contract configuration
     this.VAULT_CONTRACT_ADDRESS = process.env.VAULT_CONTRACT_ADDRESS;
-    this.VAULT_ABI = TokenVaultWithRelayer.abi;
+    this.VAULT_ABI = VAULT_ABI;
     
     // Initialize vault contract
     if (this.VAULT_CONTRACT_ADDRESS) {
@@ -23,7 +22,7 @@ class ContractService {
     }
     
     // Relayer wallet (server wallet that can call RegisterUser)
-    this.relayerPrivateKey = process.env.RELAYER_PRIVATE_KEY;
+    this.relayerPrivateKey = process.env.PRIVATE_KEY;
     if (this.relayerPrivateKey) {
       this.relayerAccount = privateKeyToAccount(this.relayerPrivateKey);
       this.relayerWalletClient = createWalletClient({
@@ -54,61 +53,13 @@ class ContractService {
   }
 
   /**
-   * Create EIP712 signature for user registration
-   * @param {bigint} userId - The user ID
-   * @param {string} walletAddress - The user's wallet address
-   * @returns {Promise<object>} - Signature data
-   */
-  async createRegistrationSignature(userId, walletAddress) {
-    if (!this.vaultContract) {
-      throw new Error('Vault contract not configured');
-    }
-
-    // EIP712 domain
-    const domain = {
-      name: 'TokenVaultWithRelayer',
-      version: '1',
-      chainId: this.networkConfig.chain.id,
-      verifyingContract: this.VAULT_CONTRACT_ADDRESS
-    };
-
-    // EIP712 types
-    const types = {
-      RegisterUser: [
-        { name: 'user', type: 'uint256' },
-        { name: 'wallet', type: 'address' }
-      ]
-    };
-
-    // EIP712 message
-    const message = {
-      user: userId,
-      wallet: getAddress(walletAddress)
-    };
-
-    // Create signature using viem
-    const signature = await this.relayerWalletClient.signTypedData({
-      domain,
-      types,
-      primaryType: 'RegisterUser',
-      message
-    });
-    
-    return {
-      signature,
-      domain,
-      types,
-      message
-    };
-  }
-
-  /**
    * Register user on-chain
    * @param {string} whatsappNumber - The WhatsApp number
    * @param {string} walletAddress - The user's wallet address
+   * @param {string} permit - The permit signature to allow the vault to manage assets from the user's wallet
    * @returns {Promise<object>} - Registration result
    */
-  async registerUserOnChain(whatsappNumber, walletAddress) {
+  async registerUserOnChain(whatsappNumber, walletAddress, permit) {
     try {
       if (!this.relayerContract) {
         throw new Error('Relayer wallet not configured');
@@ -127,11 +78,8 @@ class ContractService {
         throw new Error('User already registered on-chain');
       }
 
-      // Create signature
-      const { signature } = await this.createRegistrationSignature(userId, walletAddress);
-
       // Call RegisterUser function
-      const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress), signature]);
+      const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress), permit]);
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
       console.log(`✅ User registered on-chain: User ID ${userId}, Wallet ${walletAddress}`);
@@ -194,6 +142,19 @@ class ContractService {
       console.error('Error getting on-chain user data:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get current network information
+   * @returns {object} - Network information
+   */
+  getNetworkInfo() {
+    return {
+      network: currentNetwork,
+      chainId: this.networkConfig.chain.id,
+      name: this.networkConfig.name,
+      rpc: this.networkConfig.rpc
+    };
   }
 }
 
