@@ -1,16 +1,18 @@
-const { ethers } = require('ethers');
+const { createPublicClient, http, createWalletClient, custom } = require('viem');
+const { privateKeyToAccount } = require('viem/accounts');
+const { sepolia, polygon } = require('viem/chains');
 require('dotenv').config();
 
 // Blockchain configuration
 const NETWORK_CONFIG = {
   sepolia: {
     rpc: process.env.SEPOLIA_RPC || 'https://sepolia.infura.io/v3/YOUR_PROJECT_ID',
-    chainId: 11155111,
+    chain: sepolia,
     name: 'Sepolia Testnet'
   },
   polygon: {
     rpc: process.env.POLYGON_RPC || 'https://polygon-rpc.com',
-    chainId: 137,
+    chain: polygon,
     name: 'Polygon Mainnet'
   }
 };
@@ -27,19 +29,37 @@ const USDC_ABI = [
   'function symbol() view returns (string)'
 ];
 
-// Initialize provider
-let provider;
+// Vault contract configuration
+const VAULT_CONTRACT_ADDRESS = process.env.VAULT_CONTRACT_ADDRESS;
+const VAULT_ABI = [
+  'function RegisterUser(uint256 user, address wallet, bytes calldata signature) external',
+  'function userAddresses(uint256) view returns (address)',
+  'function userRiskProfile(uint256) view returns (uint8)',
+  'function userAuthProfile(uint256) view returns (uint8)',
+  'function getUserAssets(uint256 user) external view returns (uint256)',
+  'function getNonce(uint256 user) external view returns (uint256)',
+  'function RELAYER_ROLE() view returns (bytes32)',
+  'function hasRole(bytes32 role, address account) view returns (bool)'
+];
+
+// Initialize public client
+let publicClient;
 try {
-  provider = new ethers.JsonRpcProvider(networkConfig.rpc);
+  publicClient = createPublicClient({
+    chain: networkConfig.chain,
+    transport: http(networkConfig.rpc)
+  });
   console.log(`✅ Connected to ${networkConfig.name}`);
 } catch (error) {
   console.error('❌ Failed to connect to blockchain:', error.message);
 }
 
 module.exports = {
-  provider,
+  publicClient,
   networkConfig,
   USDC_CONTRACT_ADDRESS,
   USDC_ABI,
+  VAULT_CONTRACT_ADDRESS,
+  VAULT_ABI,
   currentNetwork
 }; 

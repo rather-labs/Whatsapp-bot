@@ -6,6 +6,7 @@ const { encryptUserPin, decryptUserPin } = require('../utils/crypto');
 const { formatTimestamp, getCurrentUTCTimestamp } = require('../utils/timestamp');
 const { updateUserActivity, getUserSessionStatus, validateUserPin } = require('../services/sessionService');
 const { authenticateToken } = require('../middleware/auth');
+const contractService = require('../services/contractService');
 
 const router = express.Router();
 
@@ -17,8 +18,14 @@ router.post('/register', async (req, res) => {
     console.log("Whatsapp number:", whatsapp_number);
     console.log("Username:", username);
     console.log("PIN:", pin);
+    console.log("Wallet address:", wallet_address);
+    
     if (!whatsapp_number || !pin) {
       return res.status(400).json({ error: 'WhatsApp number and PIN are required' });
+    }
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'Wallet address is required for on-chain registration' });
     }
 
     // Validate PIN format (4-6 digits)
@@ -27,7 +34,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'PIN must be a 4-6 digit number' });
     }
 
-    // Check if user already exists
+    // Check if user already exists in database
     db.get('SELECT whatsapp_number FROM users WHERE whatsapp_number = ?', [whatsapp_number], async (err, row) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
@@ -36,26 +43,56 @@ router.post('/register', async (req, res) => {
         return res.status(409).json({ error: 'User already exists' });
       }
 
-      // Create new user
-      const encryptedPin = encryptUserPin(pinNumber, process.env.JWT_SECRET);
-
-      db.run(
-        'INSERT INTO users (whatsapp_number, username, encrypted_pin, wallet_address, wallet_balance, vault_balance) VALUES (?, ?, ?, ?, ?, ?)',
-        [whatsapp_number, username, encryptedPin, wallet_address, 0, 0], 
-        (err) => {
-          if (err) {
-            return res.status(500).json({ error: 'Failed to create user' });
-          }
-
-          res.status(201).json({
-            message: 'User created successfully',
-            whatsappNumber: whatsapp_number,
-            walletAddress: wallet_address,
-            walletBalance: 0,
-            vaultBalance: 0
-          });
+      try {
+        // Check if user is already registered on-chain
+        const isRegisteredOnChain = await contractService.isUserRegisteredOnChain(whatsapp_number);
+        if (isRegisteredOnChain) {
+          return res.status(409).json({ error: 'User already registered on-chain' });
         }
-      );
+
+        console.log("🔄 Starting on-chain registration...");
+        
+        // Register user on-chain first
+        const onChainResult = await contractService.registerUserOnChain(whatsapp_number, wallet_address);
+        
+        console.log("✅ On-chain registration successful:", onChainResult);
+
+        // Now encrypt PIN and create user in database
+        const encryptedPin = encryptUserPin(pinNumber, process.env.JWT_SECRET);
+        const utcTimestamp = getCurrentUTCTimestamp();
+
+        db.run(
+          'INSERT INTO users (whatsapp_number, username, encrypted_pin, wallet_address, wallet_balance, vault_balance, created_at, last_activity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [whatsapp_number, username, encryptedPin, wallet_address, 0, 0, utcTimestamp, utcTimestamp], 
+          (err) => {
+            if (err) {
+              console.error('❌ Database insertion failed:', err);
+              return res.status(500).json({ error: 'Failed to create user in database' });
+            }
+
+            console.log("✅ User created successfully in database");
+
+            res.status(201).json({
+              message: 'User registered successfully on-chain and in database',
+              whatsappNumber: whatsapp_number,
+              walletAddress: wallet_address,
+              walletBalance: 0,
+              vaultBalance: 0,
+              onChainData: {
+                userId: onChainResult.userId,
+                transactionHash: onChainResult.transactionHash,
+                blockNumber: onChainResult.blockNumber
+              }
+            });
+          }
+        );
+      } catch (onChainError) {
+        console.error('❌ On-chain registration failed:', onChainError);
+        return res.status(500).json({ 
+          error: 'On-chain registration failed', 
+          details: onChainError.message 
+        });
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);

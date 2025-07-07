@@ -1,5 +1,5 @@
 const db = require('../config/database');
-const { encryptUserPin, decryptUserPin } = require('../utils/crypto');
+const { encryptUserPin } = require('../utils/crypto');
 const { getCurrentUTCTimestamp, isSessionExpired } = require('../utils/timestamp');
 
 // Session management functions

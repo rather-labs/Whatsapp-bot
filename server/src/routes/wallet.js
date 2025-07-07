@@ -1,8 +1,8 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { ethers } = require('ethers');
+const { getContract, formatEther, formatUnits, getAddress } = require('viem');
 const db = require('../config/database');
-const { provider, USDC_CONTRACT_ADDRESS, USDC_ABI } = require('../config/blockchain');
+const { publicClient, USDC_CONTRACT_ADDRESS, USDC_ABI } = require('../config/blockchain');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -22,13 +22,17 @@ router.get('/balance', authenticateToken, async (req, res) => {
       let ethBalance = '0';
       let usdcBalance = '0';
 
-      if (provider) {
+      if (publicClient) {
         try {
-          ethBalance = ethers.formatEther(await provider.getBalance(user.wallet_address));
+          ethBalance = formatEther(await publicClient.getBalance({ address: getAddress(user.wallet_address) }));
           
-          const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, USDC_ABI, provider);
-          const usdcBalanceRaw = await usdcContract.balanceOf(user.wallet_address);
-          usdcBalance = ethers.formatUnits(usdcBalanceRaw, 6); // USDC has 6 decimals
+          const usdcContract = getContract({
+            address: USDC_CONTRACT_ADDRESS,
+            abi: USDC_ABI,
+            publicClient: publicClient
+          });
+          const usdcBalanceRaw = await usdcContract.read.balanceOf([getAddress(user.wallet_address)]);
+          usdcBalance = formatUnits(usdcBalanceRaw, 6); // USDC has 6 decimals
         } catch (error) {
           console.error('Error fetching blockchain balances:', error);
         }
@@ -99,8 +103,8 @@ router.post('/pay', authenticateToken, async (req, res) => {
         }
       });
 
-      // Send on-chain transaction if provider is available
-      if (provider && user.wallet_address) {
+      // Send on-chain transaction if publicClient is available
+      if (publicClient && user.wallet_address) {
         try {
           // Note: In a real implementation, you would decrypt the private key using the encrypted_pin
           // For now, we'll skip the blockchain transaction and just do off-chain
