@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { maxUint256, parseSignature } from 'viem';
-import { parseErc6492Signature } from 'viem/utils'; //not ERC-6492 aware
+import { concatBytes, decodeAbiParameters, type Hex, isHex, keccak256, maxUint256, parseSignature, slice, toBytes, toHex } from 'viem';
+import { parseErc6492Signature, isErc6492Signature } from 'viem/utils'; //not ERC-6492 aware
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
 import { usePublicClient, useAccount, useWalletClient, useSwitchChain  } from 'wagmi';
 import { useSignature } from '../context/SignatureContext';
-import { type Message, type Domain, permitTypes } from '../utils/dataStructures';
+import { type PermitMessage as Message, type Domain, types } from '../utils/dataStructures';
 import type { APIError } from '@coinbase/onchainkit/api';
+
 
 export default function SignPermit() {
 
@@ -23,9 +24,7 @@ export default function SignPermit() {
   
   const [message, setMessage] = useState<Message|undefined>();
   const [domain, setDomain] = useState<Domain|undefined>();
-
-  const types = permitTypes;
-  
+ 
   useEffect(() => { // without this, the signature is failing for testnet and localhost
     if (walletClient?.chain.id !== chainId) {
       switchChain({ chainId: walletClient?.chain.id as 31337 | 84532 | 8453 });
@@ -114,12 +113,18 @@ export default function SignPermit() {
     }); 
     console.log('newSignature validation result:', isNewSignatureValid);
     setIsSignatureValid(isNewSignatureValid);
-    
-    const { signature } = parseErc6492Signature(newSignature as `0x${string}`);
-    console.log('signature', signature.length);
+    let signature = newSignature as `0x${string}`;
+    while (isErc6492Signature(signature)) {
+      //signature = unwrap6492Signature(signature as `0x${string}`).ownerSignature as `0x${string}`;
+      //signature = unwrapErc6492Signature(signature as `0x${string}`).ownerSignature as `0x${string}`;
+      signature = parseErc6492Signature(signature as `0x${string}`).signature;
+      console.log('signature', signature);
+      console.log('signature length', signature.length);
+    }
 
-
-    const { v, r, s } = parseSignature(signature as `0x${string}`);
+    // CANT USER PERMIT: passkey smart wallets don't have (r,s,v) signature, 
+    //  usdc doesn't  support a P-256 signature. 
+    const { r, s, v } = parseSignature(signature as `0x${string}`);
     console.log('v', v);
     console.log('r', r);
     console.log('s', s);
@@ -127,28 +132,23 @@ export default function SignPermit() {
       address: tokenAddress,                          
       abi: [
         {
-          name:   "permit",           // ERC-2612
-          type:   "function",
+          constant: true,
           inputs: [
-            { name: "owner",    type: "address" },
-            { name: "spender",  type: "address" },
-            { name: "value",    type: "uint256" },
-            { name: "deadline", type: "uint256" },
-            { name: "v",        type: "uint8"    },
-            { name: "r",        type: "bytes32"  },
-            { name: "s",        type: "bytes32"  },
+            { name: 'hash', type: 'bytes32' },
+            { name: 'signature', type: 'bytes' },
           ],
-          outputs: [],
-          stateMutability: "nonpayable",
+          name: 'isValidSignature',
+          outputs: [{ name: 'magicValue', type: 'bytes4' }],
+          payable: false,
+          stateMutability: 'view',
+          type: 'function',
         },
       ],
-      functionName: "permit",
+      functionName: "isValidSignature",
       args: [
-        userAddress,      // signer address
-        vaultAddress,     // contract that will pull tokens
-        maxUint256,       // allowance
-        maxUint256,       // same you signed
-        Number(v), r, s,  // from the signature
+        keccak256(toBytes(message as Message)),      // signer address
+        signature,     // contract that will pull tokens
+        userAddress,
       ],
     })
     console.log('tx', tx);

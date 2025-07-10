@@ -1,10 +1,15 @@
-export type Message = {
-    owner: `0x${string}`, 
+export type PermitMessage = {
+    owner: `0x${string}`  , 
     spender: `0x${string}`, 
     value: bigint, 
     nonce: bigint,
     deadline: bigint,
-};
+}
+
+export type TransactionMessage = {
+    to: `0x${string}`;
+    data: `0x${string}`;
+}
 
 export type Domain = {
   name: string;
@@ -13,7 +18,7 @@ export type Domain = {
   verifyingContract: `0x${string}`;
 };
 
-export const permitTypes = {
+export const types = {
     Permit: [
       { name: "owner",    type: "address" },
       { name: "spender",  type: "address" },
@@ -21,7 +26,11 @@ export const permitTypes = {
       { name: "nonce",    type: "uint256" },
       { name: "deadline", type: "uint256" },
     ],
-  } as const;
+    Transaction: [
+      { name: "to",       type: "address" },
+      { name: "data",     type: "bytes" }
+    ]
+} as const;
 
 export const domainTypes = {
     EIP712Domain: [
