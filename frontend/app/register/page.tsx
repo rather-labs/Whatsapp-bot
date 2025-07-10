@@ -138,7 +138,7 @@ export default function Home() {
               </div>
               <button
                 type="button"
-                disabled={!pin || pin.length < 4 || pin.length > 6 || !signature || !isSignatureValid || !signature}
+                disabled={!pin || pin.length < 4 || pin.length > 6 || !signature || !isSignatureValid }
                 onClick={() => handleSubmit()}
                 className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
                   !pin || pin.length < 4 || pin.length > 6 || !signature || !isSignatureValid

@@ -3,8 +3,8 @@
 import React, { createContext, useContext, useState, type ReactNode } from 'react';
 
 interface SignatureContextType {
-  signature: string | null;
-  setSignature: (signature: string | null) => void;
+  signature: `0x${string}` | null;
+  setSignature: (signature: `0x${string}` | null) => void;
   isSignatureValid: boolean;
   setIsSignatureValid: (valid: boolean) => void;
   disabled: boolean;
@@ -14,7 +14,7 @@ interface SignatureContextType {
 const SignatureContext = createContext<SignatureContextType | undefined>(undefined);
 
 export function SignatureProvider({ children }: { children: ReactNode }) {
-  const [signature, setSignature] = useState<string | null>(null);
+  const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [isSignatureValid, setIsSignatureValid] = useState<boolean>(false);
   const [disabled, setDisabled] = useState<boolean>(false);
   return (

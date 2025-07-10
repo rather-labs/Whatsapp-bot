@@ -18,7 +18,7 @@ import { WagmiProvider } from "wagmi";
 export function Providers(props: { children: ReactNode }) {
   const getChain = () => {
     const chainName = process.env.NEXT_PUBLIC_CHAIN?.toLowerCase();
-    console.log('chainName', chainName);
+
     switch (chainName) {
       case 'base':
         return base;
@@ -45,7 +45,7 @@ export function Providers(props: { children: ReactNode }) {
           chain={chain} 
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY} 
           projectId={process.env.NEXT_PUBLIC_PROJECT_ID}
-          config={{
+          config={{ // Add paymaster to sponsor gas for the user
             appearance: {
               name: 'Whatsapp Bot Base',
               logo: 'https://onchainkit.xyz/favicon/48x48.png?v4-19-24',

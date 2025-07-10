@@ -1,21 +1,23 @@
 import { http, cookieStorage, createConfig, createStorage } from 'wagmi';
-import { base, baseSepolia, localhost } from 'wagmi/chains'; 
-import { coinbaseWallet } from 'wagmi/connectors';
+import { base, baseSepolia, hardhat } from 'wagmi/chains'; 
+import { coinbaseWallet, injected } from 'wagmi/connectors';
 
 export function getConfig() {
 
   const chain = process.env.NEXT_PUBLIC_CHAIN === 'base' ? base : 
                 process.env.NEXT_PUBLIC_CHAIN === 'baseSepolia' ? baseSepolia :
-                localhost;
+                hardhat;
 
   return createConfig({
     connectors: [
+      injected(),
       coinbaseWallet({
         appName: 'OnchainKit',
         preference: 'smartWalletOnly',
         version: '4',
       }),
     ],
+    syncConnectedChain:true,
     storage: createStorage({
       storage: cookieStorage,
     }),
@@ -24,7 +26,7 @@ export function getConfig() {
     transports: {
       [base.id]: http(),
       [baseSepolia.id]: http(),
-      [localhost.id]: http(),
+      [hardhat.id]: http(),
     },
   });
 }
