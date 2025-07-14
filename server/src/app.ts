@@ -21,7 +21,6 @@ import healthRoutes from './routes/health';
 import userRoutes from './routes/users';
 import walletRoutes from './routes/wallet';
 import vaultRoutes from './routes/vault';
-import transactionRoutes from './routes/transactions';
 import contactRoutes from './routes/contacts';
 
 // Import configurations
@@ -46,7 +45,6 @@ app.use('/api', healthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/vault', vaultRoutes);
-app.use('/api/transactions', transactionRoutes);
 app.use('/api/contacts', contactRoutes);
 
 // Error handling middleware

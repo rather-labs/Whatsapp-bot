@@ -8,7 +8,7 @@ class SessionManager {
   async checkAndHandleSession(whatsappNumber, contact) {
     try {
 
-      const sessionResult = await this.backendService.validateSession(whatsappNumber);
+      const sessionResult = await this.backendService.getSessionInfo(whatsappNumber);
       
       if (!sessionResult) {
         return { registered: false, requiresPin: false, 
@@ -69,6 +69,10 @@ class SessionManager {
         };
       }
 
+      // update timestamp
+      pendingResponse.timestamp = new Date();
+      this.pendingPinResponses.set(whatsappNumber, pendingResponse);
+
       // Validate PIN format
       const pinNumber = Number.parseInt(pin, 10);
       if (Number.isNaN(pinNumber) || pinNumber < 1000 || pinNumber > 999999) {
@@ -81,7 +85,7 @@ class SessionManager {
       // Validate PIN with server
       const sessionResult = await this.backendService.validateSession(whatsappNumber, pinNumber);
       
-      if (sessionResult.success && sessionResult.sessionRestored) {
+      if (sessionResult.success) {
         // PIN is correct, clear pending response
         this.pendingPinResponses.delete(whatsappNumber);
         
@@ -99,10 +103,9 @@ Type /help to see available commands.`
       // PIN is incorrect
       return { 
         success: false, 
-        message: '❌ *Incorrect PIN*\n\nPlease enter your correct PIN:\n\n*PIN:* (4-6 digits)' 
+        message: sessionResult.message.error?? '❌ *Incorrect PIN*\n\nPlease enter your correct PIN:\n\n*PIN:* (4-6 digits)' 
       };
     } catch (error) {
-      console.error('Error handling PIN input:', error);
       return { 
         success: false, 
         message: '❌ *Error*\n\nAn error occurred while verifying your PIN. Please try again:\n\n*PIN:* (4-6 digits)' 
@@ -151,12 +154,12 @@ Type /help to see available commands.`
   // Clear user session
   clearSession(whatsappNumber) {
     this.pendingPinResponses.delete(whatsappNumber);
-    this.backendService.clearUserSession(whatsappNumber);
   }
 
   // Get session info for debugging
   async getSessionInfo(whatsappNumber) {
     try {
+
       const sessionStatus = await this.backendService.getSessionStatus(whatsappNumber);
       const pendingPin = this.pendingPinResponses.has(whatsappNumber);
       

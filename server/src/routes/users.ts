@@ -5,6 +5,9 @@ import db from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import ContractService from '../services/contractService';
+import { getUserSessionStatus } from '../services/sessionService';
+import { encryptUserPin } from '../utils/crypto';
+import e from 'express';
 
 interface UserRow {
   whatsapp_number: string;
@@ -82,7 +85,6 @@ router.get('/data/:whatsapp_number', async (req: Request, res: Response) => {
 // User registration
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    console.log("Registering user");
     const { whatsapp_number, username, pin, wallet_address } = req.body;
     
     if (!whatsapp_number || !pin) {
@@ -107,11 +109,10 @@ router.post('/register', async (req: Request, res: Response) => {
 
     console.log("🔄 Starting registration...");
     // Register user on-chain
-    console.log("🔄 Registering user on-chain...");
     await ContractService.registerUserOnChain(whatsapp_number, wallet_address);
 
     // Encrypt PIN and create user in database
-    const encryptedPin = pinNumber.toString(); // Simplified for now
+    const encryptedPin = encryptUserPin(pinNumber, process.env.JWT_SECRET);
     const utcTimestamp = new Date().toISOString();
     db.run(
         'INSERT INTO users (whatsapp_number, username, encrypted_pin, wallet_address, wallet_balance, vault_balance, created_at, last_activity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -212,5 +213,94 @@ router.post('/login', async (req: Request, res: Response) => {
     }
   });
 });
+
+// Session status endpoint
+router.get('/session/status/:whatsapp_number', async (req: Request, res: Response) => {
+  try {
+    const { whatsapp_number } = req.params;
+    
+    // Get session status using sessionService
+    return res.json({sessionStatus: await getUserSessionStatus(whatsapp_number)});
+
+  } catch (error) {
+    console.error('❌ Session validation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Validations
+router.post('/session/validate', async (req: Request, res: Response) => {
+  try {
+    const { whatsapp_number, pin } = req.body;
+
+    const sessionStatus = await getUserSessionStatus(whatsapp_number);
+    if (!sessionStatus.exists) {
+      return res.status(404).json({ error: '*User not found*, check that you have registered' });
+    }
+
+    // Get encrypted pin from database
+    const user = await new Promise<any>((resolve, reject) => {
+      db.get(
+        'SELECT encrypted_pin FROM users WHERE whatsapp_number = ?',
+        [whatsapp_number],
+        (err: any, row: any) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    const encryptedPin = encryptUserPin(pin, process.env.JWT_SECRET);
+
+    if (user.encrypted_pin !== encryptedPin) {
+      return res.status(401).json({ 
+        error: "*Invalid credentials*, use the PIN you set upon registration\n\nPlease enter your PIN to continue:\n\n*PIN:* (4-6 digits)" });
+    }
+
+    // update user activity    
+    const utcTimestamp = new Date().toISOString();
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        'UPDATE users SET last_activity = ? WHERE whatsapp_number = ?',
+        [utcTimestamp, whatsapp_number],
+        (err: unknown) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    // Get session status using sessionService
+    return res.json({success: true});
+
+  } catch (error) {
+    console.error('❌ Session validation error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/session/update', async (req: Request, res: Response) => {
+  try {
+    const { whatsapp_number } = req.body;
+
+    const utcTimestamp = new Date().toISOString();
+    // Update the user's last activity time in the database using this timestamp
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        'UPDATE users SET last_activity = ? WHERE whatsapp_number = ?',
+        [utcTimestamp, whatsapp_number],
+        (err: unknown) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    return res.json({success: true});
+  } catch (error) {
+    console.error('❌ Session validation error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 
 export default router; 

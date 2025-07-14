@@ -14,11 +14,10 @@ class MessageHandler {
     const userId = message.from;
     const whatsappNumber = userId.replace('@c.us', '');
         
-    console.log('message', message);
-
     // Check if user is awaiting PIN input
     if (this.sessionManager.isAwaitingPin(whatsappNumber)) {
       // Handle PIN input
+      console.log('handlePinInput', text);
       const pinResult = await this.sessionManager.handlePinInput(whatsappNumber, text);
       return pinResult.message;
     }
@@ -65,6 +64,7 @@ class MessageHandler {
     }
 
     const checkSession = async () => {
+      console.log('checkSession');
       // Check session status and handle expiration
       const sessionResult = await this.sessionManager.checkAndHandleSession(whatsappNumber, contact);
       
@@ -72,7 +72,7 @@ class MessageHandler {
         return sessionResult.message;
       }
 
-      // Update user activity for valid session
+      // Update user activity
       await this.sessionManager.updateActivity(whatsappNumber);
     
       return null
@@ -674,7 +674,7 @@ Or just say hello! 😊`;
   async handleSessionStatus(whatsappNumber, contact) {
     try {
       const sessionInfo = await this.sessionManager.getSessionInfo(whatsappNumber);
-      
+    
       if (!sessionInfo) {
         return "📊 *Session Status*\n\n❌ No active session\n\nYou need to register first with /register";
       }
