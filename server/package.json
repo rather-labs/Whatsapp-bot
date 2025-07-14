@@ -2,10 +2,11 @@
   "name": "server",
   "version": "1.0.0",
   "description": "Backend server for user management and EVM transactions",
-  "main": "server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate": "node migrations/migrate.js",
     "migrate-sessions": "node migrate-sessions.js"
@@ -25,7 +26,15 @@
     "viem": "^2.31.7"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@types/compression": "^1.7.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "nodemon": "^3.0.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.0"
   },
   "keywords": [
     "backend",
@@ -33,7 +42,8 @@
     "evm",
     "database",
     "api",
-    "nodejs"
+    "nodejs",
+    "typescript"
   ],
   "author": "",
   "license": "MIT"
