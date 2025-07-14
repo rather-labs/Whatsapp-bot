@@ -3,17 +3,17 @@
 import { Wallet } from '@coinbase/onchainkit/wallet';
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { erc20Abi, maxUint256 } from 'viem';
 import { useTransaction } from '../context/TransactionContext';
 import SignTransaction from '../components/SignTransaction';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { success } = useTransaction();
+  const { success, setCalls } = useTransaction();
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [pin, setPin] = useState<string | null>(null);
-  const [signature] = useState<string | null>(null);
-  const [message] = useState<string | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   // Get parameters from URL
   useEffect(() => {
@@ -23,6 +23,45 @@ export default function Home() {
       setUsername(params.get("username"));
     }
   }, []);
+
+  const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`
+  const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`
+
+  useEffect(() => {
+    console.log('Environment variables:', { tokenAddress, vaultAddress });
+    
+    // Only set calls if both addresses are valid and not empty
+    if (tokenAddress && vaultAddress && tokenAddress !== '0x' && vaultAddress !== '0x') {
+      console.log('Setting calls with valid addresses');
+      setCalls([
+        {
+          address: tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [vaultAddress as `0x${string}`, maxUint256],
+          value: BigInt(0)
+        }
+      ]);
+    } else {
+      console.log('Clearing calls due to invalid addresses');
+      // Clear calls if addresses are invalid
+      setCalls(null);
+    }
+  }, [tokenAddress, vaultAddress, setCalls]);
+
+  useEffect(() => {
+    async function checkRegistration() {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check/${whatsappNumber}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        },
+      });
+      const data = await response.json();
+      setIsSubmitted(data.registered);
+    }
+    checkRegistration();
+  }, [whatsappNumber]);
 
   const handleSubmit = async () => {
     if (isConnected && address && whatsappNumber && pin && success ) {
@@ -52,11 +91,15 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           console.log("Registration successful:", data);
-          window.close();
+          setIsSubmitted(true);
         } else {
           const errorData = await response.json();
           console.error("Registration failed:", response.status, errorData);
-          alert(`Registration failed: ${errorData.error || 'Unknown error'}`);
+          if (errorData.error === "User already exists") {
+            setIsSubmitted(true);
+          } else {
+            alert(`Registration failed: ${errorData.error || 'Unknown error'}`);
+          }
         }
       } catch (err) {
         console.error("Failed to register:", err);
@@ -103,52 +146,59 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-              <label
-                htmlFor="pin-input"
-                className="font-semibold text-[1.1em] text-[#1A1A1A] mb-2 self-start"
-              >
-                Enter a PIN
-                <span className="text-[#A0A0A0] font-normal">(4-6 digits)</span>
-              </label>
-              <input
-                id="pin-input"
-                type="password"
-                inputMode="numeric"
-                pattern="\d{4,6}"
-                maxLength={6}
-                minLength={4}
-                value={pin ?? ""}
-                onChange={e => {
-                  const val = e.target.value;
-                  // Only allow digits and up to 6 characters
-                  if (/^\d{0,6}$/.test(val)) {
-                    setPin(val);
-                  }
-                }}
-                placeholder="Enter PIN"
-                autoComplete="off"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-base bg-white text-[#1A1A1A] outline-none box-border font-inherit tracking-widest"
-              />
-              {pin && (pin.length < 4 || pin.length > 6) && (
-                <div className="text-[#E53E3E] bg-[#FFF5F5] rounded-md px-4 py-2 text-[0.95em] self-start">
-                  PIN must be 4 to 6 digits.
+              {isSubmitted && (
+                <div className="text-[#276749] bg-[#F0FFF4] rounded-md px-4 py-2 text-lg font-bold self-start">
+                  User registered.<br />You may now close this window.
                 </div>
               )}
-              <div className="bg-white rounded-2xl p-6 shadow-md max-w-md w-full mt-4">
-                <SignTransaction />
+              <div className={`${isSubmitted ? "hidden" : ""}`}>
+                <label
+                  htmlFor="pin-input"
+                  className="font-semibold text-[1.1em] text-[#1A1A1A] mb-2 self-start"
+                >
+                  Enter a PIN
+                  <span className="text-[#A0A0A0] font-normal">(4-6 digits)</span>
+                </label>
+                <input
+                  id="pin-input"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="\d{4,6}"
+                  maxLength={6}
+                  minLength={4}
+                  value={pin ?? ""}
+                  onChange={e => {
+                    const val = e.target.value;
+                    // Only allow digits and up to 6 characters
+                    if (/^\d{0,6}$/.test(val)) {
+                      setPin(val);
+                    }
+                  }}
+                  placeholder="Enter PIN"
+                  autoComplete="off"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-base bg-white text-[#1A1A1A] outline-none box-border font-inherit tracking-widest"
+                />
+                {pin && (pin.length < 4 || pin.length > 6) && (
+                  <div className="text-[#E53E3E] bg-[#FFF5F5] rounded-md px-4 py-2 text-[0.95em] self-start">
+                    PIN must be 4 to 6 digits.
+                  </div>
+                )}
+                <div className="bg-white rounded-2xl p-6 shadow-md max-w-md w-full mt-4">
+                  <SignTransaction />
+                </div>
+                <button
+                  type="button"
+                  disabled={!pin || pin.length < 4 || pin.length > 6 || !success }
+                  onClick={() => handleSubmit()}
+                  className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
+                    !pin || pin.length < 4 || pin.length > 6 || !success
+                      ? "bg-gray-200 text-[#A0A0A0] cursor-not-allowed"
+                      : "bg-[#0052FF] text-white cursor-pointer"
+                  }`}
+                >
+                  Submit Registration
+                </button>
               </div>
-              <button
-                type="button"
-                disabled={!pin || pin.length < 4 || pin.length > 6 || !success }
-                onClick={() => handleSubmit()}
-                className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
-                  !pin || pin.length < 4 || pin.length > 6 || !success
-                    ? "bg-gray-200 text-[#A0A0A0] cursor-not-allowed"
-                    : "bg-[#0052FF] text-white cursor-pointer"
-                }`}
-              >
-                Submit Registration
-              </button>
             </div>
           </>
         )}

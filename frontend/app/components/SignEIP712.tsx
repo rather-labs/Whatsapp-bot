@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { decodeAbiParameters, encodeFunctionData, type Hex, http, isHex, maxUint256, parseSignature, slice, toHex } from 'viem';
-import { erc20Abi, erc4337Abi } from 'viem';
-import { abi } from 'viem/account-abstraction';
+import { erc20Abi } from 'viem';
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
 import { usePublicClient, useAccount, useWalletClient, useSwitchChain, useConfig  } from 'wagmi';
 import { useSignature } from '../context/SignatureContext';
