@@ -1,114 +1,120 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { encodeFunctionData, decodeFunctionData, parseAbi } from 'viem';
+import { decodeAbiParameters, encodeFunctionData, type Hex, http, isHex, maxUint256, parseSignature, slice, toHex } from 'viem';
+import { erc20Abi, erc4337Abi } from 'viem';
+import { abi } from 'viem/account-abstraction';
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
-import { usePublicClient, useChainId } from 'wagmi';
-
-type EIP712Message = {
-  from: `0x${string}`;
-  fromWhatsapp: string;
-  to: `0x${string}`;
-  toWhatsapp: string;
-  toWhatsappName: string;
-  value: number;
-  gas: number;
-  nonce: number;
-  data: `0x${string}`;
-};
-
-function formatMessage(message: EIP712Message) {
-  const data = decodeFunctionData({
-    abi: parseAbi(['function transfer(address to,uint256 amount)']),
-    data: message.data
-  });
-  if (data.functionName === 'transfer') { 
-    return `Sign to transfer ${data.args[1]} USDC
-From ${message.fromWhatsapp} 
-To ${message.toWhatsappName ? message.toWhatsappName  : message.toWhatsapp} ${message.toWhatsappName ? `(${message.toWhatsapp})` : ''}
-`;
-  } 
-  throw new Error('Unrecognized function name');
-}
+import { usePublicClient, useAccount, useWalletClient, useSwitchChain, useConfig  } from 'wagmi';
+import { useSignature } from '../context/SignatureContext';
+import { type TransactionMessage, type Domain, types } from '../utils/dataStructures';
+import type { APIError } from '@coinbase/onchainkit/api';
+import { bundlerActions, createBundlerClient } from 'viem/account-abstraction';
+import { baseSepolia } from 'viem/chains';
 
 export default function SignEIP712() {
 
-  const userAddress = '0x59EE67662D98e31628ea4ce3718707C881B04Cc9' as `0x${string}`
-  const vaultAddress = '0x59EE67662D98e31628ea4ce3718707C881B04Cc9' as `0x${string}`
-  const chainId = useChainId();
+  const { setSignature, setIsSignatureValid, disabled, setDisabled, setMessage, message } = useSignature();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
+
+  const userAddress = address as `0x${string}`;
+  const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`
+  const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`
 
   const client = usePublicClient();
 
-  // encode the contract call
-  const data = encodeFunctionData({
-    abi: parseAbi(['function transfer(address to,uint256 amount)']),
-    functionName: 'transfer',
-    args: [userAddress, BigInt(10)]
-  });
-
-  const domain = {
-    name: 'Whatsapp Bot Base',
-    version: '1.0.0',
-    chainId: chainId,
-    verifyingContract: userAddress,
-  };
+  const { switchChain } = useSwitchChain();
   
-  const types  = { 
-    ForwardRequest: [
-      {name:'from',type:'address'},
-      {name:'to',type:'address'},
-      {name:'toWhatsapp',type:'string'},
-      {name:'toWhatsappName',type:'string'},
-      {name:'value',type:'uint256'},
-      {name:'gas',type:'uint256'},
-      {name:'nonce',type:'uint256'},
-      {name:'data',type:'bytes'}
-    ]
-  }
-  
-  const message = { 
-    from: userAddress, 
-    fromWhatsapp: '+5491133333333',
-    to: vaultAddress, 
-    toWhatsapp: '+5491133333333',
-    toWhatsappName: 'John Doe',
-    value: 0, 
-    gas: 90_000, 
-      nonce:1,
-      data 
-    };
+  const [domain, setDomain] = useState<Domain|undefined>();
+ 
+  useEffect(() => { // without this, the signature is failing for testnet and localhost
+    if (walletClient?.chain.id !== chainId) {
+      switchChain({ chainId: walletClient?.chain.id as 31337 | 84532 | 8453 });
+    }
+  }, [walletClient?.chain.id, chainId, switchChain]); 
 
-
-  const [signature, setSignature] = useState<string | null>(null);
-  const [status, setStatus] = useState<LifecycleStatus | null>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Message rerenders and should not be used
   useEffect(() => {
-    if (signature && client && message) {
-      const isValid = client.verifyTypedData({
-        address: userAddress,
-        signature: signature as `0x${string}`,
-        primaryType: 'ForwardRequest',
-        message,
-        types,
-      }); 
-      console.log(isValid);
+    const getNonce = async () => {
+      if (!client || !userAddress) return;
+      
+      try {
+        // Get nonce from Token address
+        const approveCalldata = encodeFunctionData({
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [vaultAddress, maxUint256],
+        });
+        
+        const messageData = {
+          to: tokenAddress, 
+          data: approveCalldata, 
+        };
+        console.log('messageData', messageData);
+        
+        setMessage(messageData);
+
+        setDomain({
+          name: 'SmartWallet',
+          version: '1',
+          chainId: BigInt(client?.chain.id),
+          verifyingContract: tokenAddress,
+        });
+
+      } catch (error) {
+        console.error('Error fetching nonce:', error);
+      }
+    }
+    getNonce();
+  }, [client, tokenAddress, userAddress, vaultAddress]);
+
+  const handleSignatureSuccess = async (newSignature: string) => {
+  
+    setSignature(newSignature as `0x${string}`);
+
+    const isNewSignatureValid = await client.verifyTypedData({ //ERC-6492 aware
+      address: userAddress,
+      signature: newSignature as `0x${string}`,
+      domain,
+      primaryType: 'Transaction',
+      message: message as TransactionMessage,
+      types
+    }); 
+    setIsSignatureValid(isNewSignatureValid);
+
+  };
+
+  const handleStatusChange = (newStatus: LifecycleStatus) => {
+    setDisabled(newStatus.statusName === 'success');
+  };
+
+  const handleError = async (error: APIError) => {
+    console.error('Error:', error);
+  };
+
+  if (!tokenAddress || !vaultAddress) {
+    return (
+      <div className="w-full p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <p>Error: Missing environment variables</p>
+        <p>Please set NEXT_PUBLIC_TOKEN_ADDRESS and NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS in your .env.local file</p>
+      </div>
+    );
   }
-  }, [signature, client]);
 
   return (
-    <div>
-      <Signature
-        domain={domain}
-        types={types}
-        primaryType="ForwardRequest"
-        message={message}
-        label="Sign EIP712"
-        onSuccess={(signature: string) => setSignature(signature)}
-        onStatus={(status: LifecycleStatus) => setStatus(status)}
-        className="custom-class"
-        disabled={status?.statusName === 'success'}
-      />
-      <p>{signature}</p>
+    <div className="w-full">
+      {message && (
+        <Signature
+          domain={domain}
+          types={types}
+          primaryType="Transaction"
+          message={message}
+          label="Sign transaction"
+          onSuccess={handleSignatureSuccess}
+          onStatus={handleStatusChange}
+          onError={handleError}
+          disabled={disabled || !domain}
+        />
+      )}
     </div>
   );
-}
+} 

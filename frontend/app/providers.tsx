@@ -13,6 +13,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getConfig } from '@/wagmi'; // your import path may vary
 import { WagmiProvider } from "wagmi";
+import { TransactionProvider } from "./context/TransactionContext";
 
 
 export function Providers(props: { children: ReactNode }) {
@@ -51,11 +52,14 @@ export function Providers(props: { children: ReactNode }) {
               logo: 'https://onchainkit.xyz/favicon/48x48.png?v4-19-24',
               mode: 'auto',
               theme: 'base',
-            },
+            }, 
+            paymaster: process.env.NEXT_PUBLIC_PAYMASTER_ENDPOINT, 
           }}
         >
           <SignatureProvider>
-            {props.children}
+            <TransactionProvider>
+              {props.children}
+            </TransactionProvider>
           </SignatureProvider>
         </OnchainKitProvider>
       </QueryClientProvider>

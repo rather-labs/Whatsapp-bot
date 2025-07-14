@@ -3,15 +3,17 @@
 import { Wallet } from '@coinbase/onchainkit/wallet';
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import SignPermit from '../components/SignPermit';
-import { useSignature } from '../context/SignatureContext';
+import { useTransaction } from '../context/TransactionContext';
+import SignTransaction from '../components/SignTransaction';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { signature, isSignatureValid } = useSignature();
+  const { success } = useTransaction();
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [pin, setPin] = useState<string | null>(null);
+  const [signature] = useState<string | null>(null);
+  const [message] = useState<string | null>(null);
 
   // Get parameters from URL
   useEffect(() => {
@@ -23,12 +25,11 @@ export default function Home() {
   }, []);
 
   const handleSubmit = async () => {
-    if (isConnected && address && whatsappNumber && pin && signature && isSignatureValid) {
+    if (isConnected && address && whatsappNumber && pin && success ) {
       console.log("Registering user with:", {
         whatsapp_number: whatsappNumber,
         username: username || whatsappNumber,
         pin: pin,
-        signature: signature,
         backend_url: process.env.NEXT_PUBLIC_BACKEND_URL
       });
       
@@ -61,17 +62,17 @@ export default function Home() {
         console.error("Failed to register:", err);
         alert(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
-            } else {
-          console.log("Missing required fields:", {
-            isConnected,
-            address: !!address,
-            whatsappNumber: !!whatsappNumber,
-            pin: !!pin,
-            signature: !!signature,
-            isSignatureValid
-          });
-          alert("Please ensure you are connected to your wallet, have entered a valid PIN, and have signed the permit");
-        }
+    } else {
+      console.log("Missing required fields:", {
+        whatsappNumber: !!whatsappNumber,
+        username: !!username,
+        pin: !!pin,
+        success: !!success,
+        isConnected: !!isConnected,
+        address: !!address
+      });
+      alert("Please ensure you are connected to your wallet, have entered a valid PIN, and have signed the approval transaction. If you have already signed the transaction, please wait for it to be confirmed.");
+    }
   };
 
   return (
@@ -134,14 +135,14 @@ export default function Home() {
                 </div>
               )}
               <div className="bg-white rounded-2xl p-6 shadow-md max-w-md w-full mt-4">
-                <SignPermit />
+                <SignTransaction />
               </div>
               <button
                 type="button"
-                disabled={!pin || pin.length < 4 || pin.length > 6 || !signature || !isSignatureValid }
+                disabled={!pin || pin.length < 4 || pin.length > 6 || !success }
                 onClick={() => handleSubmit()}
                 className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
-                  !pin || pin.length < 4 || pin.length > 6 || !signature || !isSignatureValid
+                  !pin || pin.length < 4 || pin.length > 6 || !success
                     ? "bg-gray-200 text-[#A0A0A0] cursor-not-allowed"
                     : "bg-[#0052FF] text-white cursor-pointer"
                 }`}

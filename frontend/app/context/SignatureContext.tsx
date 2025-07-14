@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import type { PermitMessage, TransactionMessage } from '../utils/dataStructures';
 
 interface SignatureContextType {
   signature: `0x${string}` | null;
@@ -9,6 +10,8 @@ interface SignatureContextType {
   setIsSignatureValid: (valid: boolean) => void;
   disabled: boolean;
   setDisabled: (disabled: boolean) => void;
+  message: TransactionMessage | PermitMessage | null;
+  setMessage: (message: TransactionMessage | PermitMessage | null) => void;
 }
 
 const SignatureContext = createContext<SignatureContextType | undefined>(undefined);
@@ -17,6 +20,7 @@ export function SignatureProvider({ children }: { children: ReactNode }) {
   const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [isSignatureValid, setIsSignatureValid] = useState<boolean>(false);
   const [disabled, setDisabled] = useState<boolean>(false);
+  const [message, setMessage] = useState<TransactionMessage | PermitMessage | null>(null);
   return (
     <SignatureContext.Provider value={{
       signature,
@@ -24,7 +28,9 @@ export function SignatureProvider({ children }: { children: ReactNode }) {
       isSignatureValid,
       setIsSignatureValid,
       disabled,
-      setDisabled
+      setDisabled,
+      message,
+      setMessage
     }}>
       {children}
     </SignatureContext.Provider>

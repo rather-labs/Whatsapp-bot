@@ -1,17 +1,78 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { concatBytes, decodeAbiParameters, type Hex, isHex, keccak256, maxUint256, parseSignature, slice, toBytes, toHex } from 'viem';
+import { smartw, decodeAbiParameters, type Hex, isHex, maxUint256, parseSignature, slice, toHex } from 'viem';
 import { parseErc6492Signature, isErc6492Signature } from 'viem/utils'; //not ERC-6492 aware
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
 import { usePublicClient, useAccount, useWalletClient, useSwitchChain  } from 'wagmi';
 import { useSignature } from '../context/SignatureContext';
-import { type PermitMessage as Message, type Domain, types } from '../utils/dataStructures';
+import { type Message, type Domain, permitTypes } from '../utils/dataStructures';
 import type { APIError } from '@coinbase/onchainkit/api';
 
+type UnwrappedSignature = {
+  ownerSignature: Hex;
+  factory: Hex;
+  factoryCalldata: Hex;
+};
+
+const ERC6492_MAGIC_SUFFIX = '0x6492649264926492649264926492649264926492649264926492649264926492';
+
+export function unwrap6492Signature(wrappedSig: string) : UnwrappedSignature {
+  console.log('wrappedSig', wrappedSig);
+  // Remove the magic suffix (last 32 bytes) from the wrappedSig
+  const wrappedSigWithoutMagic = slice(wrappedSig as `0x${string}`, 0, -32);
+  const dataLength = wrappedSigWithoutMagic.length - 130 - 40 - 2;
+  console.log('dataLength', dataLength);
+  const [factory, factoryCalldata, ownerSignature] = decodeAbiParameters(
+    // The last parameter is the owner's signature, which is always 65 bytes in length
+    [{ type: 'address' }, { type: `bytes${dataLength/2}` }, { type: 'bytes65' }],
+    wrappedSig as `0x${string}`,
+  )
+  return {
+    factory,
+    factoryCalldata: factoryCalldata as `0x${string}`,
+    ownerSignature: ownerSignature as `0x${string}`,
+  }
+}
+
+export function unwrapErc6492Signature(wrappedSignature: Hex): UnwrappedSignature {
+  // 1. Validate the input to ensure it's a hex string
+  if (!isHex(wrappedSignature)) {
+    throw new Error('Input must be a valid hex string.');
+  }
+
+  // 2. Check if the signature ends with the ERC-6492 magic suffix
+  if (!wrappedSignature.endsWith(ERC6492_MAGIC_SUFFIX.slice(2))) { // slice '0x' from suffix for string comparison
+    console.log("Not an ERC-6492 signature: Magic suffix is missing.");
+    throw new Error('Not an ERC-6492 signature: Magic suffix is missing.');
+  }
+
+  // 3. If it's a valid ERC-6492 signature, parse its components.
+  // The structure is: [factory (20 bytes)][factoryCalldata (variable)][ownerSignature (65 bytes)][magicSuffix (32 bytes)]
+  
+  // Remove the magic suffix to work with the core data
+  const coreData = slice(wrappedSignature, 0, -32); // Remove last 32 bytes (suffix)
+  console.log('wrappedSignature', wrappedSignature);
+  console.log('coreData', coreData);
+
+  // Extract the owner's signature (last 65 bytes of the core data)
+  const ownerSignature = slice(coreData, -65);
+
+  // Extract the factory address (first 20 bytes of the core data)
+  const factory = slice(coreData, 0, 20);
+
+  // The remaining data between the factory and the owner signature is the factoryCalldata
+  const factoryCalldata = slice(coreData, 20, -65);
+
+  return {
+    ownerSignature,
+    factory,
+    factoryCalldata,
+  };
+}
 
 export default function SignPermit() {
 
-  const { setSignature, setIsSignatureValid, disabled, setDisabled, setMessage, message } = useSignature();
+  const { setSignature, setIsSignatureValid, disabled, setDisabled } = useSignature();
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -22,8 +83,11 @@ export default function SignPermit() {
   const client = usePublicClient();
   const { switchChain } = useSwitchChain();
   
+  const [message, setMessage] = useState<Message|undefined>();
   const [domain, setDomain] = useState<Domain|undefined>();
- 
+
+  const types = permitTypes;
+  
   useEffect(() => { // without this, the signature is failing for testnet and localhost
     if (walletClient?.chain.id !== chainId) {
       switchChain({ chainId: walletClient?.chain.id as 31337 | 84532 | 8453 });
@@ -121,8 +185,6 @@ export default function SignPermit() {
       console.log('signature length', signature.length);
     }
 
-    // CANT USER PERMIT: passkey smart wallets don't have (r,s,v) signature, 
-    //  usdc doesn't  support a P-256 signature. 
     const { r, s, v } = parseSignature(signature as `0x${string}`);
     console.log('v', v);
     console.log('r', r);
@@ -131,23 +193,28 @@ export default function SignPermit() {
       address: tokenAddress,                          
       abi: [
         {
-          constant: true,
+          name:   "permit",           // ERC-2612
+          type:   "function",
           inputs: [
-            { name: 'hash', type: 'bytes32' },
-            { name: 'signature', type: 'bytes' },
+            { name: "owner",    type: "address" },
+            { name: "spender",  type: "address" },
+            { name: "value",    type: "uint256" },
+            { name: "deadline", type: "uint256" },
+            { name: "v",        type: "uint8"    },
+            { name: "r",        type: "bytes32"  },
+            { name: "s",        type: "bytes32"  },
           ],
-          name: 'isValidSignature',
-          outputs: [{ name: 'magicValue', type: 'bytes4' }],
-          payable: false,
-          stateMutability: 'view',
-          type: 'function',
+          outputs: [],
+          stateMutability: "nonpayable",
         },
       ],
-      functionName: "isValidSignature",
+      functionName: "permit",
       args: [
-        keccak256(toBytes(message as Message)),      // signer address
-        signature,     // contract that will pull tokens
-        userAddress,
+        userAddress,      // signer address
+        vaultAddress,     // contract that will pull tokens
+        maxUint256,       // allowance
+        maxUint256,       // same you signed
+        Number(v), r, s,  // from the signature
       ],
     })
     console.log('tx', tx);
