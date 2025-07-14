@@ -14,12 +14,11 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     console.log("Registering user");
-    const { whatsapp_number, username, pin, wallet_address, permit } = req.body;
+    const { whatsapp_number, username, pin, wallet_address } = req.body;
     console.log("Whatsapp number:", whatsapp_number);
     console.log("Username:", username);
     console.log("PIN:", pin);
     console.log("Wallet address:", wallet_address);
-    console.log("Permit:", permit);
     
     if (!whatsapp_number || !pin) {
       return res.status(400).json({ error: 'WhatsApp number and PIN are required' });
@@ -45,16 +44,10 @@ router.post('/register', async (req, res) => {
       }
 
       try {
-        // Check if user is already registered on-chain
-        const isRegisteredOnChain = await contractService.isUserRegisteredOnChain(whatsapp_number);
-        if (isRegisteredOnChain) {
-          return res.status(409).json({ error: 'User already registered on-chain' });
-        }
-
         console.log("🔄 Starting on-chain registration...");
         
         // Register user on-chain first
-        const onChainResult = await contractService.registerUserOnChain(whatsapp_number, wallet_address, permit);
+        const onChainResult = await contractService.registerUserOnChain(whatsapp_number, wallet_address);
         
         console.log("✅ On-chain registration successful:", onChainResult);
 

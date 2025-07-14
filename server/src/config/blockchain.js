@@ -1,4 +1,4 @@
-const { createPublicClient, http, createWalletClient, custom, defineChain } = require('viem');
+const { createPublicClient, http, createWalletClient, custom, defineChain, createBundlerClient } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
 const { base, baseSepolia } = require('viem/chains');
 const TokenVaultWithRelayer = require('../utils/TokenVaultWithRelayer.json');
@@ -70,8 +70,20 @@ try {
   console.error('❌ Failed to connect to blockchain:', error.message);
 }
 
+// Initialize bundler client
+let bundlerClient;
+try {
+  bundlerClient = createBundlerClient({
+    chain: networkConfig.chain,
+    transport: http(networkConfig.rpc)
+  });
+  console.log(`✅ Connected to ${networkConfig.name}`);
+} catch (error) {
+  console.error('❌ Failed to connect to blockchain:', error.message);
+}
 module.exports = {
   publicClient,
+  bundlerClient,
   networkConfig,
   USDC_CONTRACT_ADDRESS,
   USDC_ABI,

@@ -1,4 +1,4 @@
-const { createPublicClient, http, createWalletClient, custom, getContract, parseEther, formatEther, keccak256, toHex, stringToHex, getAddress } = require('viem');
+const { createPublicClient, http, createWalletClient, parseAbi, getContract, parseEther, formatEther, keccak256, toHex, stringToHex, getAddress } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
 const { base, baseSepolia } = require('viem/chains');
 const { publicClient, networkConfig, currentNetwork, VAULT_ABI } = require('../config/blockchain');
@@ -51,6 +51,25 @@ class ContractService {
     // Convert to uint256 (take first 32 bytes)
     return BigInt(hash.slice(0, 66)); // 0x + 64 hex chars = 66 chars
   }
+  
+  /**
+   * Check if user is registered on-chain
+   * @param {bigint} userId - The user ID
+   * @returns {Promise<boolean>} - Whether user is registered
+   */
+    async isUserRegisteredOnChain(userId) {
+      try {
+        console.log("CONTRACT", this.vaultContract)
+
+        console.log("CONTRACT", this.vaultContract.read)
+        const walletAddress = await this.vaultContract.read.getUserWallet(userId);
+        console.log("EXISTING ADDRESS", walletAddress)
+        return walletAddress !== '0x0000000000000000000000000000000000000000';
+      } catch (error) {
+        console.error('Error checking on-chain registration:', error);
+        return false;
+      }
+    }
 
   /**
    * Register user on-chain
@@ -59,7 +78,7 @@ class ContractService {
    * @param {string} permit - The permit signature to allow the vault to manage assets from the user's wallet
    * @returns {Promise<object>} - Registration result
    */
-  async registerUserOnChain(whatsappNumber, walletAddress, permit) {
+  async registerUserOnChain(whatsappNumber, walletAddress) {
     try {
       if (!this.relayerContract) {
         throw new Error('Relayer wallet not configured');
@@ -73,13 +92,11 @@ class ContractService {
       const userId = this.generateUserId(whatsappNumber);
       
       // Check if user is already registered
-      const existingAddress = await this.vaultContract.read.userAddresses([userId]);
-      if (existingAddress !== '0x0000000000000000000000000000000000000000') {
+      if (await this.isUserRegisteredOnChain(userId)) {
         throw new Error('User already registered on-chain');
       }
-
       // Call RegisterUser function
-      const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress), permit]);
+      const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress)]);
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
       console.log(`✅ User registered on-chain: User ID ${userId}, Wallet ${walletAddress}`);
@@ -95,22 +112,6 @@ class ContractService {
     } catch (error) {
       console.error('❌ On-chain registration failed:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Check if user is registered on-chain
-   * @param {string} whatsappNumber - The WhatsApp number
-   * @returns {Promise<boolean>} - Whether user is registered
-   */
-  async isUserRegisteredOnChain(whatsappNumber) {
-    try {
-      const userId = this.generateUserId(whatsappNumber);
-      const walletAddress = await this.vaultContract.read.userAddresses([userId]);
-      return walletAddress !== '0x0000000000000000000000000000000000000000';
-    } catch (error) {
-      console.error('Error checking on-chain registration:', error);
-      return false;
     }
   }
 
