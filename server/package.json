@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:blockchain": "node test-blockchain.js",
     "migrate": "node migrations/migrate.js",
     "migrate-sessions": "node migrate-sessions.js"
   },

@@ -51,7 +51,7 @@ class ContractService {
       this.vaultContract = getContract({
         address: this.VAULT_CONTRACT_ADDRESS as `0x${string}`,
         abi: this.VAULT_ABI,
-        publicClient: this.publicClient
+        client: this.publicClient
       });
     }
     
@@ -67,7 +67,7 @@ class ContractService {
       this.relayerContract = getContract({
         address: this.VAULT_CONTRACT_ADDRESS as `0x${string}`,
         abi: this.VAULT_ABI,
-        walletClient: this.relayerWalletClient
+        client: this.relayerWalletClient as WalletClient
       });
     }
   }
@@ -80,24 +80,19 @@ class ContractService {
   generateUserId(whatsappNumber: string): bigint {
     // Remove any non-numeric characters and convert to number
     const cleanNumber = whatsappNumber.replace(/\D/g, '');
-    // Use a hash function to generate a unique user ID
-    const hash = keccak256(stringToHex(cleanNumber));
     // Convert to uint256 (take first 32 bytes)
-    return BigInt(hash.slice(0, 66)); // 0x + 64 hex chars = 66 chars
+    return BigInt(cleanNumber); 
   }
   
   /**
    * Check if user is registered on-chain
-   * @param userId - The user ID
+   * @param whatsappNumber - The WhatsApp number
    * @returns Whether user is registered
    */
-  async isUserRegisteredOnChain(userId: bigint): Promise<boolean> {
+  async isUserRegisteredOnChain(whatsappNumber: string): Promise<boolean> {
     try {
-      console.log("CONTRACT", this.vaultContract);
-
-      console.log("CONTRACT", this.vaultContract.read);
+      const userId = this.generateUserId(whatsappNumber);
       const walletAddress = await this.vaultContract.read.getUserWallet([userId]);
-      console.log("EXISTING ADDRESS", walletAddress);
       return walletAddress !== '0x0000000000000000000000000000000000000000';
     } catch (error) {
       console.error('Error checking on-chain registration:', error);
@@ -120,17 +115,17 @@ class ContractService {
       if (!getAddress(walletAddress)) {
         throw new Error('Invalid wallet address');
       }
+      
+      // Check if user is already registered
+      if (await this.isUserRegisteredOnChain(whatsappNumber)) {
+        throw new Error('User already registered on-chain');
+      }
 
       // Generate user ID
       const userId = this.generateUserId(whatsappNumber);
-      
-      // Check if user is already registered
-      if (await this.isUserRegisteredOnChain(userId)) {
-        throw new Error('User already registered on-chain');
-      }
       // Call RegisterUser function
       const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress)]);
-      const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
       console.log(`✅ User registered on-chain: User ID ${userId}, Wallet ${walletAddress}`);
       console.log(`Transaction hash: ${receipt.transactionHash}`);
