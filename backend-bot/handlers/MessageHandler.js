@@ -224,15 +224,13 @@ This bot is built with Node.js and Express, designed to provide a seamless Whats
 
   async handleRegisterUser(whatsappNumber, contact, userId) {
     // Try to register user with backend server
-    const user = await this.backendService.getUser(userId);
+    const user = await this.backendService.getUserData(whatsappNumber);
 
     if (user) {
       return `Your account is already registered!
 
-💰 Balance: ${user.balance} USDC
-📅 Created: ${user.createdAt}
-🆔 User ID: ${userId.slice(0, 8)}
-`;
+💰 On VaultBalance: ${user.assets} USDC
+📅 Created on: ${user.createdAt.split('T')[0]}`;
     }
     
     return `To register your account, tap in the link below

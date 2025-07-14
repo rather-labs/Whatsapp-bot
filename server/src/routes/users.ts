@@ -1,7 +1,6 @@
 import express from 'express';
 import type { Response, Request } from 'express';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
 import db from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import type { AuthenticatedRequest } from '../middleware/auth';
@@ -36,6 +35,44 @@ router.get('/check/:whatsapp_number', async (req: Request, res: Response) => {
       registered: false,
       message: 'User not registered on blockchain'
     });
+  } catch (error) {
+    console.error('❌ Registration check error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get User Data
+router.get('/data/:whatsapp_number', async (req: Request, res: Response) => {
+  const { whatsapp_number } = req.params;
+
+  if (!whatsapp_number) {
+    return res.status(400).json({ error: 'WhatsApp number is required' });
+  }
+
+  try {
+    const user = await ContractService.getUserOnChainData(whatsapp_number);
+    // Get user creation time from database
+    let createdAt: string | undefined = undefined;
+    await new Promise<void>((resolve) => {
+      db.get(
+        'SELECT created_at FROM users WHERE whatsapp_number = ?',
+        [whatsapp_number],
+        (err: Error | null, row: { created_at?: string } | undefined) => {
+          if (err) {
+            console.error('❌ Error fetching user creation time:', err);
+            return resolve(); // Don't block response on error
+          }
+          if (row?.created_at) {
+            createdAt = row.created_at;
+          }
+          resolve();
+        }
+      );
+    });
+    if (createdAt) {
+      (user as any).createdAt = createdAt;
+    }
+    return res.json(user);
   } catch (error) {
     console.error('❌ Registration check error:', error);
     return res.status(500).json({ error: 'Internal server error' });

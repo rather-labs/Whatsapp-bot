@@ -80,7 +80,7 @@ class BackendService {
   }
 
   // Register a new user with the backend server
-  async registerUser(whatsappNumber, username = null, pin = 1234) {
+  async registerUser(whatsappNumber, username, pin) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/register`, {
         whatsapp_number: whatsappNumber,
@@ -110,13 +110,24 @@ class BackendService {
     }
   }
 
+    // Get user profile from backend server
+    async getUserData(whatsappNumber) {
+      try {
+        const userResponse = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/data/${whatsappNumber}`);
+        return userResponse.data;
+      } catch (error) {
+        console.error('Error getting user profile:', error.response?.data || error.message);
+        return null;
+      }
+    }
+
   // Get user balance from backend server
   async getUserBalance(whatsappNumber) {
     try {
       const token = await this.getUserToken(whatsappNumber);
       if (!token) return null;
 
-      const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/wallet/balance`, {
+      const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/balance`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;

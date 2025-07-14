@@ -1,4 +1,16 @@
-import { createPublicClient, http, createWalletClient, parseAbi, getContract, parseEther, formatEther, keccak256, toHex, stringToHex, getAddress, type PublicClient, type WalletClient } from 'viem';
+import { 
+    createWalletClient, 
+    createPublicClient, 
+    http, 
+    getContract, 
+    getAddress, 
+    type PublicClient, 
+    type WalletClient, 
+    type Abi,
+    type GetContractReturnType,
+    type Client,
+    type Account,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base, baseSepolia } from 'viem/chains';
 import { publicClient, networkConfig, currentNetwork, VAULT_ABI } from '../config/blockchain';
@@ -17,7 +29,6 @@ interface UserOnChainData {
   riskProfile: string;
   authProfile: string;
   assets: string;
-  isRegistered: boolean;
 }
 
 interface NetworkInfo {
@@ -31,10 +42,10 @@ class ContractService {
   private publicClient: PublicClient | undefined;
   private networkConfig: any;
   private VAULT_CONTRACT_ADDRESS: string | undefined;
-  private VAULT_ABI: any;
+  private VAULT_ABI: Abi;
   private vaultContract: any;
   private relayerPrivateKey: string | undefined;
-  private relayerAccount: any;
+  private relayerAccount: Account;
   private relayerWalletClient: WalletClient | undefined;
   private relayerContract: any;
 
@@ -44,7 +55,7 @@ class ContractService {
     
     // Vault contract configuration
     this.VAULT_CONTRACT_ADDRESS = process.env.VAULT_CONTRACT_ADDRESS;
-    this.VAULT_ABI = VAULT_ABI;
+    this.VAULT_ABI = VAULT_ABI as Abi;
     
     // Initialize vault contract
     if (this.VAULT_CONTRACT_ADDRESS && this.publicClient) {
@@ -55,7 +66,7 @@ class ContractService {
       });
     }
     
-    // Relayer wallet (server wallet that can call RegisterUser)
+    // Relayer wallet (server wallet that can act as relayer)
     this.relayerPrivateKey = process.env.PRIVATE_KEY;
     if (this.relayerPrivateKey && this.networkConfig) {
       this.relayerAccount = privateKeyToAccount(this.relayerPrivateKey as `0x${string}`);
@@ -151,13 +162,17 @@ class ContractService {
   async getUserOnChainData(whatsappNumber: string): Promise<UserOnChainData> {
     try {
       const userId = this.generateUserId(whatsappNumber);
-      
+
       const [walletAddress, riskProfile, authProfile, assets] = await Promise.all([
-        this.vaultContract.read.userAddresses([userId]),
-        this.vaultContract.read.userRiskProfile([userId]),
-        this.vaultContract.read.userAuthProfile([userId]),
+        this.vaultContract.read.getUserWallet([userId]),
+        this.vaultContract.read.getUserRiskProfile([userId]),
+        this.vaultContract.read.getUserAuthProfile([userId]),
         this.vaultContract.read.getUserAssets([userId])
       ]);
+
+      if (walletAddress === '0x0000000000000000000000000000000000000000') {
+        throw new Error('User not registered on-chain');
+      }
 
       return {
         userId: userId.toString(),
@@ -165,7 +180,6 @@ class ContractService {
         riskProfile: riskProfile.toString(),
         authProfile: authProfile.toString(),
         assets: assets.toString(),
-        isRegistered: walletAddress !== '0x0000000000000000000000000000000000000000'
       };
     } catch (error) {
       console.error('Error getting on-chain user data:', error);
