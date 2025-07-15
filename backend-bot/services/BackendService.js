@@ -86,20 +86,6 @@ class BackendService {
     }
   }
 
-  // Send payment through backend server
-  async sendPayment(whatsappNumber, amount, recipient) {
-    try {
-      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/wallet/pay`, {
-        amount: amount,
-        recipient: recipient
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error sending payment:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
   // Check backend server health
   async checkHealth() {
     try {
@@ -127,14 +113,21 @@ class BackendService {
     return await this.getUserProfile(whatsappNumber);
   }
 
-  // Add funds to user account (buy, deposit, etc.)
-  async addFunds(whatsappNumber, amount, type = 'deposit', metadata = {}) {
-    try {
+  // Send payment through backend server
+  async sendPayment(whatsappNumber, recipient, amount) {
+      return await axios.post(`${this.BACKEND_SERVER_URL}/api/transfers/pay`, {
+        whatsapp_number: whatsappNumber,
+        recipient: recipient,
+        amount: amount
+      });
+  }
 
-      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/transactions/add`, {
-        amount: amount,
-        type: type,
-        metadata: metadata
+  // Add funds to user account (buy, deposit, etc.)
+  async buyAssets(whatsappNumber, amount) {
+    try {
+      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/ramps/onramp`, {
+        whatsappNumber: whatsappNumber,
+        amount: amount
       });
       return response.data;
     } catch (error) {
@@ -143,38 +136,16 @@ class BackendService {
     }
   }
 
-  // Remove funds from user account (sell, withdraw, payment, etc.)
-  async removeFunds(whatsappNumber, amount, type = 'withdrawal', metadata = {}) {
+  // Sell tokens (offramp)
+  async sellAssets(whatsappNumber, amount) {
     try {
-
-      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/transactions/remove`, {
+      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/ramps/offramp`, {
+        whatsappNumber: whatsappNumber,
         amount: amount,
-        type: type,
-        metadata: metadata
       });
       return response.data;
     } catch (error) {
-      console.error('Error removing funds:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Transfer funds between users
-  async transferFunds(fromWhatsappNumber, toWhatsappNumber, amount, metadata = {}) {
-    try {
-      const token = await this.getUserToken(fromWhatsappNumber);
-      if (!token) return null;
-
-      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/transactions/transfer`, {
-        to_whatsapp_number: toWhatsappNumber,
-        amount: amount,
-        metadata: metadata
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error transferring funds:', error.response?.data || error.message);
+      console.error('Error selling tokens:', error.response?.data || error.message);
       return null;
     }
   }
@@ -201,51 +172,6 @@ class BackendService {
       return response.data.count;
     } catch (error) {
       console.error('Error getting user count:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Check if user has sufficient balance
-  async hasSufficientBalance(whatsappNumber, amount) {
-    const balanceData = await this.getUserBalance(whatsappNumber);
-    return balanceData ? balanceData.balance >= amount : false;
-  }
-
-  // Get transaction history
-  async getTransactionHistory(whatsappNumber, limit = 10) {
-    try {
-      const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/transactions/history?limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error getting transaction history:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Buy tokens (onramp)
-  async buyTokens(whatsappNumber, amount, paymentMethod) {
-    try {
-      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/tokens/buy`, {
-        amount: amount,
-        payment_method: paymentMethod
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error buying tokens:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Sell tokens (offramp)
-  async sellTokens(whatsappNumber, amount, withdrawalMethod) {
-    try {
-      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/tokens/sell`, {
-        amount: amount,
-        withdrawal_method: withdrawalMethod
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error selling tokens:', error.response?.data || error.message);
       return null;
     }
   }

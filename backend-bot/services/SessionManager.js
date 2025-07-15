@@ -8,7 +8,7 @@ class SessionManager {
   async checkAndHandleSession(whatsappNumber, contact) {
     try {
 
-      const sessionResult = await this.backendService.getSessionInfo(whatsappNumber);
+      const sessionResult = await this.getSessionInfo(whatsappNumber);
       
       if (!sessionResult) {
         return { registered: false, requiresPin: false, 
@@ -169,9 +169,7 @@ Type /help to see available commands.`
         requiresPin: sessionStatus?.requiresPin ?? false,
         pendingPin: pendingPin,
         lastActivity: sessionStatus?.lastActivity ?? null,
-        lastActivityFormatted: sessionStatus?.lastActivityFormatted ?? null,
         expirationTime: sessionStatus?.expirationTime ?? null,
-        expirationTimeFormatted: sessionStatus?.expirationTimeFormatted ?? null
       };
     } catch (error) {
       console.error('Error getting session info:', error);

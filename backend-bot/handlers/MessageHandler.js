@@ -17,7 +17,6 @@ class MessageHandler {
     // Check if user is awaiting PIN input
     if (this.sessionManager.isAwaitingPin(whatsappNumber)) {
       // Handle PIN input
-      console.log('handlePinInput', text);
       const pinResult = await this.sessionManager.handlePinInput(whatsappNumber, text);
       return pinResult.message;
     }
@@ -55,7 +54,7 @@ class MessageHandler {
     
     // User commands
     if (text === '/register') {
-      return await this.handleRegisterUser(whatsappNumber, contact, userId);
+      return await this.handleRegisterUser(whatsappNumber, contact);
     }    
     
     // Session commands
@@ -80,41 +79,41 @@ class MessageHandler {
 
     
     if (text === '/balance') {
-      return await checkSession() || this.handleBalance(userId);
+      return await checkSession() || await this.handleBalance(whatsappNumber);
     }
     
     if (text.startsWith('/pay')) {
-      return await checkSession() || this.handlePayment(text, userId, whatsappNumber);
+      return await checkSession() || await this.handlePayment(text, userId, whatsappNumber);
     }
     
     if (text.startsWith('/buy')) {
-      return await checkSession() || this.handleBuy(text, userId);
+      return await checkSession() || await this.handleBuy(text, userId);
     }
     
     if (text.startsWith('/sell')) {
-      return await checkSession() || this.handleSell(text, userId);
+      return await checkSession() || await this.handleSell(text, userId);
     }
     
     if (text.startsWith('/deposit')) {
-      return await checkSession() || this.handleDeposit(text, userId);
+      return await checkSession() || await this.handleDeposit(text, userId);
     }
     
     if (text.startsWith('/withdraw')) {
-      return await checkSession() || this.handleWithdraw(text, userId);
+      return await checkSession() || await this.handleWithdraw(text, userId);
     }
     
     // Profile commands
     if (text === '/riskprofile') {
-      return await checkSession() || this.getRiskProfileMessage();
+      return await checkSession() || await this.getRiskProfileMessage();
     }
     
     if (text === '/authprofile') {
-      return await checkSession() || this.getAuthProfileMessage();
+      return await checkSession() || await this.getAuthProfileMessage();
     }
         
     // Admin commands
     if (text === '/disconnect') {
-      return await checkSession() || this.handleDisconnect(message, whatsappNumber);
+      return await checkSession() || await this.handleDisconnect(message, whatsappNumber);
     }
     
     // Default response for unrecognized messages
@@ -222,7 +221,7 @@ Features:
 This bot is built with Node.js and Express, designed to provide a seamless WhatsApp experience with backend wallet capabilities.`;
   }
 
-  async handleRegisterUser(whatsappNumber, contact, userId) {
+  async handleRegisterUser(whatsappNumber, contact) {
     // Try to register user with backend server
     const user = await this.backendService.getUserData(whatsappNumber);
 
@@ -239,76 +238,60 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=$
 `;
 }
 
-  handleBalance(userId) {
-    const user = this.backendService.getUser(userId);
+  async handleBalance(whatsappNumber) {
+    const user = await this.backendService.getUserData(whatsappNumber);
     return `💰 *User Balance*
 
-💎 Current Balance: ${user.balance} USDC
-📊 Total Transactions: ${user.transactions.length}
-📅 Last Activity: ${user.transactions.length > 0 ? user.transactions[user.transactions.length - 1].timestamp : 'No transactions yet'}
+💎 Current Balance: ${user.assets} USDC
 
 Use /pay, /buy, /sell, /deposit, or /withdraw to manage your USDC!`;
   }
 
   async handlePayment(text, userId, whatsappNumber) {
     const parts = text.split(' ');
+
     if (parts.length < 3) {
       return `❌ *Invalid Payment Command*
 
 Usage: /pay <amount> <recipient>
-Example: /pay 100 1234567890
+Examples: 
+/pay 10 1234567890
+/pay 10 Bob
+/pay 10 x0123...lk12
 
-Please provide both amount and recipient number.`;
+Please provide both amount and recipient number, contact name or wallet address.`;
     }
     
     const amount = Number.parseInt(parts[1], 10);
-    const recipient = parts[2];
-    
-    if (Number.isNaN(amount) || amount <= 0) {
-      return `❌ *Invalid Amount*
-
-Please provide a valid positive number for the payment amount.`;
-    }
-    
-    if (!this.backendService.hasSufficientBalance(userId, amount)) {
-      const balance = this.backendService.getBalance(userId);
-      return `❌ *Insufficient Balance*
-
-Your balance: ${balance} USDC
-Payment amount: ${amount} USDC
-
-You don't have enough USDC for this payment.`;
-    }
-    
+    const recipient = parts.slice(2).join(' ');
+  
     try {
       // Transfer funds
-      this.backendService.transferFunds(userId, recipient, amount);
-      const newBalance = this.backendService.getBalance(userId);
-      
+      const response = await this.backendService.sendPayment(whatsappNumber, recipient, amount);
+      if (response.externalUrl) {
+        return response.externalUrl;
+      }
       return `✅ *Payment Successful!*
 
 💸 Sent: ${amount} USDC
 👤 To: ${recipient}
-💰 New Balance: ${newBalance} USDC
 📅 Time: ${new Date().toLocaleString()}
 
 The payment has been completed successfully!`;
     } catch (error) {
-      return `❌ *Payment Failed*
-
-Error: ${error.message}`;
+      return error.response.data.error;
     }
   }
 
-  handleBuy(text, userId) {
+  async handleBuy(text, userId) {
     const parts = text.split(' ');
     if (parts.length < 2) {
       return `❌ *Invalid Buy Command*
 
 Usage: /buy <amount>
-Example: /buy 100
+Example: /buy 100 
 
-Please provide the amount you want to buy.`;
+Please provide the amount of USDCyou want to buy.`;
     }
     
     const amount = Number.parseInt(parts[1], 10);
@@ -320,16 +303,9 @@ Please provide a valid positive number for the purchase amount.`;
     }
     
     try {
-      this.backendService.addFunds(userId, amount, 'buy');
-      const newBalance = this.backendService.getBalance(userId);
-      
-      return `✅ *Purchase Successful!*
-
-🛒 Bought: ${amount} USDC
-💰 New Balance: ${newBalance} USDC
-📅 Time: ${new Date().toLocaleString()}
-
-Your USDC has been added to your wallet!`;
+      const response = await this.backendService.buyAssets(userId, amount);
+      console.log('handleBuy response', response);
+      return response.externalUrl;
     } catch (error) {
       return `❌ *Purchase Failed*
 
@@ -337,7 +313,7 @@ Error: ${error.message}`;
     }
   }
 
-  handleSell(text, userId) {
+  async handleSell(text, userId) {
     const parts = text.split(' ');
     if (parts.length < 2) {
       return `❌ *Invalid Sell Command*
@@ -356,16 +332,19 @@ Please provide the amount you want to sell.`;
 Please provide a valid positive number for the sell amount.`;
     }
     
-    if (!this.backendService.hasSufficientBalance(userId, amount)) {
-      const balance = this.backendService.getBalance(userId);
+    const userData = await this.backendService.getUserData(whatsappNumber);
+    console.log('userData', userData);
+    if (userData.assets < amount) {
       return `❌ *Insufficient Balance*
 
-Your balance: ${balance} USDC
+Your balance: ${userData.assets} USDC
 Sell amount: ${amount} USDC
 
 You don't have enough USDC to sell.`;
     }
     
+
+
     try {
       this.backendService.removeFunds(userId, amount, 'sell');
       const newBalance = this.backendService.getBalance(userId);
@@ -432,7 +411,7 @@ Error: ${error.message}`;
     }
   }
 
-  handleWithdraw(text, userId) {
+  async handleWithdraw(text, userId) {
     const parts = text.split(' ');
     if (parts.length < 2) {
       return `❌ *Invalid Withdraw Command*
@@ -469,7 +448,7 @@ Error: ${error.message}`;
     }
   }
 
-  getRiskProfileMessage() {
+  async getRiskProfileMessage() {
     return `🎯 *Risk Profile Management*
 
 Your current risk profile: Moderate
@@ -484,7 +463,7 @@ To change your risk profile, contact support or use the web interface.
 This affects your vault investment strategy and yield generation.`;
   }
 
-  getAuthProfileMessage() {
+  async getAuthProfileMessage() {
     return `🔐 *Authentication Profile*
 
 Your current auth level: Basic
