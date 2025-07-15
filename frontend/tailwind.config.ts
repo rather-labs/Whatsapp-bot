@@ -2,9 +2,10 @@
 export default {
     content: [
       "./app/**/*.{js,ts,jsx,tsx}",
-      "./components/**/*.{js,ts,jsx,tsx}",
-      "./components/*.{js,ts,jsx,tsx}",
-      "./pages/**/*.{js,ts,jsx,tsx}",     // if you ever add one
+      "./app/**/**/*.{js,ts,jsx,tsx}",
+      "./app/components/**/*.{js,ts,jsx,tsx}",
+      "./app/onramp/*.{js,ts,jsx,tsx}",
+      "./app/register/*.{js,ts,jsx,tsx}",
     ],
     darkMode: ['class'], 
     safelist: ['dark'], 

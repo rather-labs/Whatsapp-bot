@@ -29,7 +29,7 @@ export default function Home() {
   });
 
   const [depositSubmitted, setDepositSubmitted] = useState(false);
-  const [onRampSuccess, setOnRampSuccess] = useState(false);
+  const [onRampSuccess, setOnRampSuccess] = useState(true); // TODO: set to false once the on-ramp is available
   const [signatureRequired, setSignatureRequired] = useState(false);
 
   const client = usePublicClient();
@@ -73,7 +73,7 @@ export default function Home() {
         verifyingContract: vaultAddress,
       });
     }
-  }, [setPrimaryType, setLabel, setDomain, chainId, vaultAddress]);
+  }, [setPrimaryType, setDomain, chainId, vaultAddress]);
 
   useEffect(() => { // get token info
     const getInfo = async () => {
@@ -130,7 +130,7 @@ export default function Home() {
       }
     }
     getInfo();
-  }, [client, tokenAddress, vaultAddress, chainId, depositData, setTokenInfo]);
+  }, [client, tokenAddress, chainId, tokenInfo.image]);
 
   useEffect(() => {    
     if (depositData.whatsappNumber.length > 0 && client) {
@@ -151,13 +151,13 @@ export default function Home() {
       }
       getNonce();
     }
-  }, [depositData, setMessage, vaultAddress, client]);
+  }, [depositData, setMessage, vaultAddress, client, tokenInfo, setLabel]);
 
   useEffect(() => {    
     if (signature && isSignatureValid && !signatureRequired) {
       submitDeposit();
     }
-  }, [signature, isSignatureValid, depositData, submitDeposit]);
+  }, [signature, isSignatureValid, signatureRequired]);
 
   async function submitDeposit() {
     const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/deposit`, {
@@ -177,17 +177,17 @@ export default function Home() {
       <div className="w-full flex justify-center z-50">
         <Wallet />
       </div>
-      { address && ( // TODO: remove this once the on-ramp is available
+      { address && ( // TODO: enable one of these once on-ramp is available
         <div className="w-full flex justify-center mt-6">
           <Buy toToken={tokenInfo} isSponsored disabled={true}/>
         </div>
       )}
-      { address && (
+      { address && ( 
         <div className="w-full flex justify-center mt-6">
           <FundButton disabled={true}/>
         </div>
       )}
-      { address && (
+      { address && ( // TODO: remove once on-ramp is available
         <div className="w-full flex justify-center mt-6">
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-center max-w-xl">
             <strong className="block mb-1">On-Ramp Unavailable</strong>
@@ -210,7 +210,7 @@ export default function Home() {
           </OnchainKitButton>
         </div>
       )}
-      { depositSubmitted && (
+      { depositSubmitted && onRampSuccess && (
         <div className="w-full flex justify-center mt-6">
           <div className="bg-green-100 border-l-4 border-green-500 text-green-800 p-4 rounded-md text-center max-w-xl">
             <strong className="block mb-1">Deposit Submitted. Close this window.</strong>

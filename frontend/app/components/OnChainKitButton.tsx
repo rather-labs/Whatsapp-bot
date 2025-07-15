@@ -14,12 +14,12 @@ interface OnchainKitButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEle
 export default function OnchainKitButton({ 
   children, 
   variant = 'primary', 
-  size = 'md', 
+  size = 'lg', 
   disabled = false, 
   onClick,
   ...props 
 }: OnchainKitButtonProps) {
-  const baseStyles = `inline-flex items-center justify-center font-medium 
+  const baseStyles = `inline-flex items-center justify-center font-bold 
   transition-all duration-200 
   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
   disabled:opacity-50 disabled:cursor-not-allowed`;
@@ -32,20 +32,22 @@ export default function OnchainKitButton({
   };
   
   const sizes: Record<ButtonSize, string> = {
-    sm: "px-3 py-1.5 text-sm rounded-md",
-    md: "px-4 py-2 text-sm rounded-lg",
+    sm: "px-3 py-1.5 text-base rounded-md",
+    md: "px-4 py-2 text-base rounded-lg",
     lg: "px-6 py-3 text-base rounded-lg"
   };
   const buttonClasses = `${baseStyles} ${variants[variant]} ${sizes[size]}`;
 
   return (
+    <div className={buttonClasses}>
     <button 
-      className={buttonClasses}
+      type="button"
       disabled={disabled}
       onClick={onClick}
       {...props}
     >
       {children}
     </button>
+    </div>
   );
 };

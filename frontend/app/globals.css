@@ -1,28 +1,2 @@
  /* app/globals.css */
 @import "tailwindcss";
-
-@theme {
-  /* overwrite only the colours you need */
-  /* Updated to Tailwind CSS v4 RGB color format */
-  --color-blue-50: 240 249 255;
-  --color-blue-100: 224 242 254;
-  --color-blue-200: 186 230 253;
-  --color-blue-300: 125 211 252;
-  --color-blue-400: 56 189 248;
-  --color-blue-500: 14 165 233;
-  --color-blue-600: 2 132 199;
-  --color-blue-700: 3 105 161;
-  --color-blue-800: 7 89 133;
-  --color-blue-900: 12 74 110;
-  --color-gray-50: 249 250 251;
-  --color-gray-100: 243 244 246;
-  --color-gray-200: 229 231 235;
-  --color-gray-300: 209 213 219;
-  --color-gray-400: 156 163 175;
-  --color-gray-500: 107 114 128;
-  --color-gray-600: 75 85 99;
-  --color-gray-700: 55 65 81;
-  --color-gray-800: 31 41 55;
-  --color-gray-900: 17 24 39;
-  /* …add any others you use… */
-}
