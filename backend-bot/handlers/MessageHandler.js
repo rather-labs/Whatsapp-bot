@@ -129,22 +129,25 @@ class MessageHandler {
     return `Hello! 👋 I'm your WhatsApp bot with smart wallet capabilities. How can I help you today?
     
 Available commands:
-- /help - Show this help message
-- /status - Check bot status
-- /info - Get information about this bot
-- /session - Check your session status
-- /register - Register a new user account
-- /balance - Check wallet balance
-- /pay <amount> <recipient> - Pay USDC to another user
-- /buy <amount> - Buy USDC tokens and deposit on vault to generate yield
-- /sell <amount> - Sell USDC tokens
-- /deposit <amount> - Deposit USDC to vault to generate yield
-- /withdraw <amount> - Withdraw USDC from vault to your wallet
-- /riskprofile <profile> - Change user risk profile
-- /authprofile <profile> - Check user auth profile
-- /disconnect - Disconnect the bot (authorized users only)
+• /help - Show this help message
+• /status - Check bot status
+• /info - Get information about this bot
+• /session - Check your session status
+• /register - Register a new user account
+• /balance - Check wallet and vault balances
+• /pay <amount> <recipient> - Pay USDC to another user
+• /buy <amount> - Buy USDC tokens and send to your wallet
+• /sell <amount> - Sell USDC tokens
+• /deposit <amount> - Deposit USDC from your wallet to vault to generate yield
+• /withdraw <amount> - Withdraw USDC from vault to your wallet
+• /riskprofile <profile> - Change user risk profile
+• /authprofile <profile> - Change user auth profile
+• /disconnect - Disconnect the bot (authorized users only)
 
-I can also parse vCard contact information when you share contacts! 📇`;
+I can also parse contact information when you share contacts! 📇
+I will store them so you can pay them later! 💸
+
+Or just say hello! 😊`;
   }
 
   getHelpMessage() {
@@ -161,9 +164,9 @@ I can also parse vCard contact information when you share contacts! 📇`;
 • /session - Check your session status. It will expire after 5 minutes
 • /balance - Check wallet balance
 • /pay <amount> <recipient> - Pay USDC to another user
-• /buy <amount> - Buy USDC tokens with fiat currency
-• /sell <amount> - Sell USDC tokens to fiat currency
-• /deposit <amount> - Deposit USDC to vault to generate yield
+• /buy <amount> - Buy USDC tokens and send to your wallet
+• /sell <amount> - Sell USDC tokens from your wallet
+• /deposit <amount> - Deposit USDC from your wallet to vault to generate yield
 • /withdraw <amount> - Withdraw USDC from vault to your wallet
 • /riskprofile <profile> - Change user risk profile
     + Low - Conservative investments with low yields
@@ -228,7 +231,8 @@ This bot is built with Node.js and Express, designed to provide a seamless Whats
     if (user) {
       return `Your account is already registered!
 
-💰 On VaultBalance: ${user.assets} USDC
+💰 On Vault: ${user.vaultBalance} USDC
+💰 On Wallet: ${user.walletBalance} USDC
 📅 Created on: ${user.createdAt.split('T')[0]}`;
     }
     
@@ -242,7 +246,8 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=$
     const user = await this.backendService.getUserData(whatsappNumber);
     return `💰 *User Balance*
 
-💎 Current Balance: ${user.assets} USDC
+💎 On Vault: ${user.vaultBalance} USDC
+💎 On Wallet: ${user.walletBalance} USDC
 
 Use /pay, /buy, /sell, /deposit, or /withdraw to manage your USDC!`;
   }
@@ -609,19 +614,24 @@ Error: ${error.message}`;
 
 But I don't understand what you mean 🙃 
 
-I'm a smart wallet bot! Try these commands:
-• /help - See all available commands
-• /register - Register your account
-• /balance - Check your balance
-• /pay <amount> <recipient> - Send USDC
-• /buy <amount> - Buy USDC
-• /sell <amount> - Sell USDC
-• /deposit <amount> - Deposit to vault
-• /withdraw <amount> - Withdraw from vault
-• /session - Check session status
-• /disconnect - Disconnect bot (admin or bot number only)
+Try these commands:
+• /help - Show this help message
+• /status - Check bot status
+• /info - Get information about this bot
+• /session - Check your session status
+• /register - Register a new user account
+• /balance - Check wallet and vault balances
+• /pay <amount> <recipient> - Pay USDC to another user
+• /buy <amount> - Buy USDC tokens and send to your wallet
+• /sell <amount> - Sell USDC tokens
+• /deposit <amount> - Deposit USDC to vault to generate yield
+• /withdraw <amount> - Withdraw USDC from vault to your wallet
+• /riskprofile <profile> - Change user risk profile
+• /authprofile <profile> - Change user auth profile
+• /disconnect - Disconnect the bot (authorized users only)
 
 I can also parse contact information when you share contacts! 📇
+I will store them so you can pay them later! 💸
 
 Or just say hello! 😊`;
   }

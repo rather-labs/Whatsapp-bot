@@ -10,6 +10,7 @@ import {
     type GetContractReturnType,
     type Client,
     type Account,
+    erc20Abi, 
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base, baseSepolia } from 'viem/chains';
@@ -36,7 +37,8 @@ interface UserOnChainData {
   walletAddress: string;
   riskProfile: string;
   authProfile: string;
-  assets: string;
+  vaultBalance: string;
+  walletBalance: string;
 }
 
 interface NetworkInfo {
@@ -56,6 +58,9 @@ class ContractService {
   private relayerAccount: Account;
   private relayerWalletClient: WalletClient | undefined;
   private relayerContract: any;
+  private USDC_CONTRACT_ADDRESS: string | undefined;
+  private USDC_ABI: Abi = erc20Abi;
+  private usdcContract: any;
 
   constructor() {
     this.publicClient = publicClient;
@@ -73,7 +78,17 @@ class ContractService {
         client: this.publicClient
       });
     }
-    
+    // USDC contract configuration
+    this.USDC_CONTRACT_ADDRESS = process.env.USDC_CONTRACT_ADDRESS;
+    this.USDC_ABI = erc20Abi;
+    if (this.USDC_CONTRACT_ADDRESS && this.publicClient) {
+      this.usdcContract = getContract({
+        address: this.USDC_CONTRACT_ADDRESS as `0x${string}`,
+        abi: this.USDC_ABI,
+        client: this.publicClient
+      });
+    }
+
     // Relayer wallet (server wallet that can act as relayer)
     this.relayerPrivateKey = process.env.PRIVATE_KEY;
     if (this.relayerPrivateKey && this.networkConfig) {
@@ -178,6 +193,9 @@ class ContractService {
         this.vaultContract.read.getUserAssets([userId])
       ]);
 
+      const decimals = Number(await this.usdcContract.read.decimals());
+      const walletBalance = Number(await this.usdcContract.read.balanceOf([walletAddress]))/10**decimals;
+
       if (walletAddress === '0x0000000000000000000000000000000000000000') {
         throw new Error('User not registered on-chain');
       }
@@ -187,7 +205,8 @@ class ContractService {
         walletAddress,
         riskProfile: riskProfile.toString(),
         authProfile: authProfile.toString(),
-        assets: assets.toString(),
+        vaultBalance: assets.toString(),
+        walletBalance: walletBalance.toString(),
       };
     } catch (error) {
       console.error('Error getting on-chain user data:', error);

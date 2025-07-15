@@ -64,24 +64,13 @@ class BackendService {
     }
   }
 
-    // Get user profile from backend server
-    async getUserData(whatsappNumber) {
-      try {
-        const userResponse = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/data/${whatsappNumber}`);
-        return userResponse.data;
-      } catch (error) {
-        console.error('Error getting user profile:', error.response?.data || error.message);
-        return null;
-      }
-    }
-
-  // Get user balance from backend server
-  async getUserBalance(whatsappNumber) {
+  // Get user profile from backend server
+  async getUserData(whatsappNumber) {
     try {
-      const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/balance`);
-      return response.data;
+      const userResponse = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/data/${whatsappNumber}`);
+      return userResponse.data;
     } catch (error) {
-      console.error('Error getting user balance:', error.response?.data || error.message);
+      console.error('Error getting user profile:', error.response?.data || error.message);
       return null;
     }
   }
@@ -100,12 +89,6 @@ class BackendService {
         error: error.message
       };
     }
-  }
-
-  // Get user balance
-  async getBalance(whatsappNumber) {
-    const balanceData = await this.getUserBalance(whatsappNumber);
-    return balanceData ? balanceData.balance : 0;
   }
 
   // Get user details

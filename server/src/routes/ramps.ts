@@ -6,7 +6,7 @@ import { getWhatsappNumberFromId } from '../utils/vault';
 
 const router = express.Router();
 
-// Deposit to vault
+// Generate onRamp URL
 router.post('/onramp', async (req: Request, res: Response) => {
   try {
     const { whatsappNumber, amount } = req.body;
@@ -21,6 +21,18 @@ router.post('/onramp', async (req: Request, res: Response) => {
 ${process.env.FRONTEND_URL}/onramp?whatsappNumber=${getWhatsappNumberFromId(whatsappNumber)}&amount=${amount}
 
 `});
+  } catch (error) {
+    console.error('Vault deposit error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Deposit to vault
+router.post('/deposit', async (req: Request, res: Response) => {
+  try {
+    const { whatsappNumber, amount, signature } = req.body;
+
+    console.log(whatsappNumber, amount, signature);
   } catch (error) {
     console.error('Vault deposit error:', error);
     res.status(500).json({ error: 'Internal server error' });
