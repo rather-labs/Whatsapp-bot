@@ -10,7 +10,6 @@ export function getConfig() {
 
   return createConfig({
     connectors: [
-      injected(),
       coinbaseWallet({
         appName: 'OnchainKit',
         preference: 'smartWalletOnly',

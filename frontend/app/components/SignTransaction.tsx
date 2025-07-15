@@ -31,9 +31,7 @@ export default function SignTransaction() {
     setSuccess(newStatus.statusName === 'success');
   };
 
-  console.log('calls', calls);
-  console.log('disabled', disabled);
-  
+ 
   // Additional check to ensure we don't render Transaction with invalid calls
   if (!calls || calls.length === 0) {
     console.log('No valid calls to render');

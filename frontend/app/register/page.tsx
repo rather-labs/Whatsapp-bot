@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { erc20Abi, maxUint256 } from 'viem';
 import { useTransaction } from '../context/TransactionContext';
 import SignTransaction from '../components/SignTransaction';
+import axios from 'axios';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
@@ -28,11 +29,8 @@ export default function Home() {
   const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`
 
   useEffect(() => {
-    console.log('Environment variables:', { tokenAddress, vaultAddress });
-    
     // Only set calls if both addresses are valid and not empty
     if (tokenAddress && vaultAddress && tokenAddress !== '0x' && vaultAddress !== '0x') {
-      console.log('Setting calls with valid addresses');
       setCalls([
         {
           address: tokenAddress as `0x${string}`,
@@ -51,13 +49,8 @@ export default function Home() {
 
   useEffect(() => {
     async function checkRegistration() {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check/${whatsappNumber}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json"
-        },
-      });
-      const data = await response.json();
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check/${whatsappNumber}`);
+      const data = response.data;
       setIsSubmitted(data.registered);
     }
     checkRegistration();
@@ -73,27 +66,21 @@ export default function Home() {
       });
       
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            whatsapp_number: whatsappNumber,
-            username: username || whatsappNumber,
-            pin: pin,
-            wallet_address: address,
-          })
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`, {
+          whatsapp_number: whatsappNumber,
+          username: username || whatsappNumber,
+          pin: pin,
+          wallet_address: address,
         });
-        
+
         console.log("Response status:", response.status);
         
-        if (response.ok) {
-          const data = await response.json();
+        if (response.status === 200) {
+          const data = response.data;
           console.log("Registration successful:", data);
           setIsSubmitted(true);
         } else {
-          const errorData = await response.json();
+          const errorData = response.data;
           console.error("Registration failed:", response.status, errorData);
           if (errorData.error === "User already exists") {
             setIsSubmitted(true);
