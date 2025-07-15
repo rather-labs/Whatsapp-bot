@@ -1,60 +1,60 @@
-import express, { Response } from 'express';
+import express, { type Response, type Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../config/database';
 import { authenticateToken, type AuthenticatedRequest } from '../middleware/auth';
+import ContractService from '../services/contractService';
+import { authProfiles, isValidAddress } from '../utils/vault';
 
 const router = express.Router();
 
 // Deposit to vault
-router.post('/deposit', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/pay', async (req: Request, res: Response) => {
   try {
-    const { amount } = req.body;
+    const { whatsapp_number, recipient, amount } = req.body;
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Valid amount is required' });
+    if (Number.isNaN(amount) || amount <= 0) {
+      res.status(400).json({ error: `❌ *Invalid Amount*
+
+Please provide a valid positive number for the payment amount.`});
     }
 
-    // Check wallet balance
-    db.get('SELECT wallet_balance FROM users WHERE whatsapp_number = ?', [req.user?.whatsappNumber], (err: any, user: any) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      if (user.wallet_balance < amount) {
-        return res.status(400).json({ error: 'Insufficient USDC balance' });
-      }
+    const userData = await ContractService.getUserOnChainData(whatsapp_number);
+    
+    if (userData.assets < amount) {
+      return res.status(400).json({ error: `❌ *Insufficient Balance*
 
-      const depositId = uuidv4();
-      const txId = uuidv4();
-      
-      // Create vault deposit
-      db.run(
-        'INSERT INTO vault_deposits (id, user_whatsapp_number, amount) VALUES (?, ?, ?)',
-        [depositId, req.user?.whatsappNumber, amount]
-      );
+Your balance: ${userData.assets} USDC
+Payment amount: ${amount} USDC
 
-      // Create transaction record
-      db.run(
-        'INSERT INTO transactions (id, user_whatsapp_number, type, amount, status) VALUES (?, ?, ?, ?, ?)',
-        [txId, req.user?.whatsappNumber, 'vault_deposit', amount, 'confirmed']
-      );
+You don't have enough USDC for this payment to ${recipient}.`});
+    }
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: `❌ *Invalid Amount*
 
-      // Update wallet balances
-      db.run(
-        'UPDATE users SET wallet_balance = wallet_balance - ?, vault_balance = vault_balance + ? WHERE whatsapp_number = ?',
-        [amount, amount, req.user?.whatsappNumber]
-      );
+        Payment amount: ${amount} USDC`});
+    }
+    // Check if recipient is a valid wallet address
 
-      res.json({
-        message: 'Deposited to vault successfully',
-        depositId: depositId,
-        transactionId: txId,
-        amount: amount,
-        apy: 0.05 // 5% APY
-      });
-    });
+    const recipientIsAddress = isValidAddress(recipient);
+
+    // Check auth profile - Serverside payment requires auth profile 1 for intra vault tx 
+    // and 2 or higher for external tx
+    if (
+      Number(authProfiles[userData.authProfile.toLowerCase()]) > 2 
+      ||( Number(authProfiles[userData.authProfile.toLowerCase()]) > 1 
+         && !recipientIsAddress 
+        )
+    ) {
+      return await ContractService.sendPayment(whatsapp_number, recipient, amount);
+    }
+    // Create URL for user authorized transaction
+    return res.status(200).json({ externalUrl: `To *authorize the payment*, tap in the link below
+
+${process.env.FRONTEND_URL}/payment?whatsappNumber=${whatsapp_number}&recipient=${recipient}&amount=${amount}
+
+If you want to avoid this step, you can change your auth profile to *Low* with the */authprofile Low* instruction.
+`});
+
   } catch (error) {
     console.error('Vault deposit error:', error);
     res.status(500).json({ error: 'Internal server error' });

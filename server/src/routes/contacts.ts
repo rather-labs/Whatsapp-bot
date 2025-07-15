@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../config/database';
 import { authenticateToken, type AuthenticatedRequest } from '../middleware/auth';

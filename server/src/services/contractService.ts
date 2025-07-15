@@ -14,6 +14,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { base, baseSepolia } from 'viem/chains';
 import { publicClient, networkConfig, currentNetwork, VAULT_ABI } from '../config/blockchain';
+import { isValidAddress } from '../utils/vault';
 
 interface RegistrationResult {
   success: boolean;
@@ -22,6 +23,13 @@ interface RegistrationResult {
   transactionHash: string;
   blockNumber: bigint;
 }
+interface TransactionResult {
+    success: boolean;
+    userId: string;
+    functionName: string;
+    transactionHash: string;
+    blockNumber: bigint;
+  }
 
 interface UserOnChainData {
   userId: string;
@@ -186,6 +194,44 @@ class ContractService {
       throw error;
     }
   }
+
+    /**
+   * Send payment
+   * @param whatsappNumber - The WhatsApp number
+   * @param recipient - The recipient's wallet address, contact name or whatsapp number
+   * @param amount - The amount to send
+   * @returns User's on-chain data
+   */
+    async sendPayment(whatsappNumber: string, recipient: string, amount: string): Promise<TransactionResult> {
+        try {
+          const recipientIsAddress = isValidAddress(recipient);
+
+          const userId = this.generateUserId(whatsappNumber);
+
+          const nonce = await this.relayerContract.read.nonces(userId);
+          let hash: any;
+          if (recipientIsAddress) {
+            hash = await this.relayerContract.write.transfer(userId, recipient, amount, nonce);
+          } else {
+            hash = await this.relayerContract.write.transferWithinVault(userId, recipient, amount, nonce);
+          }
+          const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+          console.log(`✅ Payment registered on-chain: User ID ${userId}, Recipient ${recipient}, amount ${amount}`);
+          console.log(`Transaction hash: ${receipt.transactionHash}`);
+    
+          return {
+            success: true,
+            functionName: recipientIsAddress ? 'transfer' : 'transferWithinVault',
+            userId: userId.toString(),
+            transactionHash: receipt.transactionHash,
+            blockNumber: receipt.blockNumber
+          };
+   
+        } catch (error) {
+          console.error('Error getting on-chain user data:', error);
+          throw error;
+        }
+      }
 
   /**
    * Get current network information

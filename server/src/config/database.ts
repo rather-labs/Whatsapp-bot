@@ -35,29 +35,6 @@ function initializeDatabase(): void {
       FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number),
       UNIQUE(user_whatsapp_number, contact_userid)
     )`,
-    `CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      user_whatsapp_number TEXT NOT NULL,
-      tx_hash TEXT,
-      type TEXT NOT NULL,
-      amount REAL NOT NULL,
-      recipient TEXT,
-      status TEXT DEFAULT 'pending',
-      gas_used INTEGER,
-      gas_price TEXT,
-      block_number INTEGER,
-      created_at TEXT DEFAULT (datetime('now', 'utc')),
-      FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number)
-    )`,
-    `CREATE TABLE IF NOT EXISTS vault_deposits (
-      id TEXT PRIMARY KEY,
-      user_whatsapp_number TEXT NOT NULL,
-      amount REAL NOT NULL,
-      apy REAL DEFAULT 0.05,
-      status TEXT DEFAULT 'active',
-      created_at TEXT DEFAULT (datetime('now', 'utc')),
-      FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number)
-    )`
   ];
 
   for (const table of tables) {
