@@ -1,6 +1,6 @@
 import { http, cookieStorage, createConfig, createStorage } from 'wagmi';
 import { base, baseSepolia, hardhat } from 'wagmi/chains'; 
-import { coinbaseWallet, injected } from 'wagmi/connectors';
+import { coinbaseWallet } from 'wagmi/connectors';
 
 export function getConfig() {
 
