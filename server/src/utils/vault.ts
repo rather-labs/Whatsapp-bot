@@ -1,8 +1,4 @@
-export const authProfiles = {
-  'low': 2,
-  'medium': 1,
-  'high': 0
-} 
+export const authProfiles = ['high', 'medium', 'low'];
 
 /**
  * Checks if a string is a valid Ethereum (EVM) address.

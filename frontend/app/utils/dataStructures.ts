@@ -1,3 +1,5 @@
+export const authProfiles = ['low', 'medium', 'high'];
+
 export type Message = PermitMessage | TransactionMessage | DepositMessage | WithdrawMessage | TransferMessage | TransferWithinVaultMessage | ChangeRiskProfileMessage | ChangeAuthProfileMessage;
 
 export type PermitMessage = {
@@ -54,7 +56,7 @@ export type ChangeRiskProfileMessage = {
 
 export type ChangeAuthProfileMessage = {
   user: bigint;
-  authProfile: bigint;
+  authProfile: number;
   nonce: bigint;
 };
 
@@ -70,50 +72,42 @@ export const types = {
     ],
   } as const,
   Deposit: { Deposit: [
-      { name: "user",       type: "uint256" },
-      { name: "assets",     type: "uint256" },
+      { name: "user",      type: "uint256" },
+      { name: "assets",    type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
   } as const,
   Withdraw: { Withdraw: [
-      { name: "user",       type: "uint256" },
-      { name: "assets",     type: "uint256" },
+      { name: "user",      type: "uint256" },
+      { name: "assets",    type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
   } as const,
   Transfer: { Transfer: [
-      { name: "user",       type: "uint256" },
-      { name: "to",         type: "address" },
-      { name: "assets",     type: "uint256" },
+      { name: "user",      type: "uint256" },
+      { name: "to",        type: "address" },
+      { name: "assets",    type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
   } as const,
   TransferWithinVault: { TransferWithinVault: [
-      { name: "userFrom",       type: "uint256" },
-      { name: "userTo",         type: "uint256" },
-      { name: "assets",     type: "uint256" },
+      { name: "userFrom",  type: "uint256" },
+      { name: "userTo",    type: "uint256" },
+      { name: "assets",    type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
   } as const,
   ChangeRiskProfile: { ChangeRiskProfile: [
-      { name: "user",       type: "uint256" },
-      { name: "riskProfile",     type: "uint256" },
-      { name: "nonce",     type: "uint256" }
+      { name: "user",        type: "uint256" },
+      { name: "riskProfile", type: "uint8" },
+      { name: "nonce",       type: "uint256" }
     ],
   } as const,
   ChangeAuthProfile: { ChangeAuthProfile: [
-      { name: "user",       type: "uint256" },
-      { name: "authProfile",     type: "uint256" },
-      { name: "nonce",     type: "uint256" }
+      { name: "user",        type: "uint256" },
+      { name: "authProfile", type: "uint8" },
+      { name: "nonce",       type: "uint256" }
     ],
   } as const,
 } ;
 
-export const domainTypes = {
-    EIP712Domain: [
-      { name: 'name',              type: 'string'  },
-      { name: 'version',           type: 'string'  },
-      { name: 'chainId',           type: 'uint256' },
-      { name: 'verifyingContract', type: 'address' },
-    ],
-  };

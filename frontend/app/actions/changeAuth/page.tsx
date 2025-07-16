@@ -7,6 +7,7 @@ import SignEIP712 from '../../components/SignEIP712';
 import { useSignature } from '../../context/SignatureContext';
 import TokenVaultWithRelayerJson from '../../utils/TokenVaultWithRelayer.json' assert { type: "json" };
 import axios from 'axios';
+import { authProfiles } from '@/app/utils/dataStructures';
 
 export type ChangeAuthData = {
   whatsappNumber: string;
@@ -20,7 +21,7 @@ export default function Home() {
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const { setMessage, 
+  const { message, setMessage, 
           setPrimaryType, 
           setLabel, 
           setDomain, 
@@ -44,7 +45,7 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       setChangeAuthData({
         whatsappNumber: params.get("whatsappNumber") || '',
-        authProfile: params.get("authProfile") || ''
+        authProfile: params.get("profile") || ''
       });
     }
   }, []);
@@ -57,7 +58,7 @@ export default function Home() {
 
   useEffect(() => {
     if (chainId) {
-      setPrimaryType('ChangeRiskProfile');
+      setPrimaryType('ChangeAuthProfile');
       setDomain({
         name: 'TokenVaultWithRelayer',
         version: '1',
@@ -78,10 +79,10 @@ export default function Home() {
         });
         setMessage({
           user: BigInt(changeAuthData.whatsappNumber),
-          authProfile: BigInt(changeAuthData.authProfile),
+          authProfile: authProfiles.indexOf(changeAuthData.authProfile.toLowerCase()),
           nonce: nonce as bigint,
         });
-        setLabel(`Sign authorization to change auth profile to ${changeAuthData.authProfile}`);
+        setLabel(`Sign to authorize change of authorization profile to ${changeAuthData.authProfile}`);
       }
       getNonce();
     }
@@ -95,10 +96,11 @@ export default function Home() {
   }, [signature, isSignatureValid]);
 
   async function submitVerification() {
-    const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/changeAuthProfile`, {
+    const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/authprofile`, {
       whatsappNumber: changeAuthData.whatsappNumber,
-      authProfile: changeAuthData.authProfile,
+      profile: changeAuthData.authProfile,
       signature: signature,
+      nonce: Number(message?.nonce),
     });
     if (response.status === 200) {
       setAuthorizationSubmitted(true);

@@ -49,18 +49,10 @@ class BackendService {
       return response.data;
     } catch (error) {
       console.error('Error registering user:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Get user profile from backend server
-  async getUserProfile(whatsappNumber) {
-    try {
-      const profileResponse = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/profile`);
-      return profileResponse.data;
-    } catch (error) {
-      console.error('Error getting user profile:', error.response?.data || error.message);
-      return null;
+      return { 
+        success: false, 
+        message: error.response?.data || error.message,
+      };
     }
   }
 
@@ -71,7 +63,44 @@ class BackendService {
       return userResponse.data;
     } catch (error) {
       console.error('Error getting user profile:', error.response?.data || error.message);
-      return null;
+      return { 
+        success: false, 
+        message: error.response?.data || error.message,
+      };
+    }
+  }
+
+  // Get/Set user risk profile from backend server
+  async riskProfile(whatsappNumber, profile) {
+    try {
+      const userResponse = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/riskprofile`, {
+        whatsappNumber,
+        profile
+      });
+      return userResponse.data;
+    } catch (error) {
+      console.error('Error getting user profile:', error.response?.data || error.message);
+      return { 
+        success: false, 
+        message: error.response?.data || error.message,
+      };
+    }
+  }
+
+  // Get/Set user authentication profile from backend server
+  async authProfile(whatsappNumber, profile) {
+    try {
+      const userResponse = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/authprofile`, {
+        whatsappNumber,
+        profile
+      });
+      return userResponse.data;
+    } catch (error) {
+      console.error('Error getting user profile:', error.response?.data || error.message);
+      return { 
+        success: false, 
+        message: error.response?.data || error.message,
+      };
     }
   }
 
@@ -99,10 +128,27 @@ class BackendService {
   // Send payment through backend server
   async sendPayment(whatsappNumber, recipient, amount) {
       return await axios.post(`${this.BACKEND_SERVER_URL}/api/transfers/pay`, {
-        whatsapp_number: whatsappNumber,
-        recipient: recipient,
-        amount: amount
+        whatsappNumber,
+        recipient,
+        amount
       });
+  }
+
+  // Deposit to vault through backend server
+  async deposit(whatsappNumber, amount) {
+    try {
+      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/transfers/deposit`, {
+        whatsappNumber,
+        amount
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error depositing to vault:', error.response?.data || error.message);
+      return { 
+        success: false, 
+        message: error.response?.data || error.message,
+      };
+    }
   }
 
   // Add funds to user account (buy, deposit, etc.)
@@ -115,7 +161,7 @@ class BackendService {
       return response.data;
     } catch (error) {
       console.error('Error adding funds:', error.response?.data || error.message);
-      return null;
+      return response;
     }
   }
 
@@ -133,48 +179,6 @@ class BackendService {
     }
   }
 
-  // Get all users summary (admin function)
-  async getAllUsers(adminToken) {
-    try {
-      const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/admin/users`, {
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error getting all users:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Get user count (admin function)
-  async getUserCount(adminToken) {
-    try {
-      const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/admin/users/count`, {
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
-      return response.data.count;
-    } catch (error) {
-      console.error('Error getting user count:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Update user profile
-  async updateUserProfile(whatsappNumber, updates) {
-    try {
-      const response = await axios.put(`${this.BACKEND_SERVER_URL}/api/users/profile`, updates);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating user profile:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  // Get backend server URL
-  getServerUrl() {
-    return this.BACKEND_SERVER_URL;
-  }
-
   // Update user activity in database
   async updateUserActivity(whatsappNumber) {
     try {
@@ -186,6 +190,11 @@ class BackendService {
       console.error('Error updating user activity:', error.response?.data || error.message);
       return null;
     }
+  }
+
+  // Get backend server URL
+  getServerUrl() {
+    return this.BACKEND_SERVER_URL;
   }
 }
 

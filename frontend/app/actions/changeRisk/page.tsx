@@ -81,7 +81,7 @@ export default function Home() {
           riskProfile: BigInt(changeRiskData.riskProfile),
           nonce: nonce as bigint,
         });
-        setLabel(`Sign authorization to change risk profile to ${changeRiskData.riskProfile}`);
+        setLabel(`Sign to authorize change of risk profile to ${changeRiskData.riskProfile}`);
       }
       getNonce();
     }
@@ -95,7 +95,7 @@ export default function Home() {
   }, [signature, isSignatureValid]);
 
   async function submitAuthorization() {
-    const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/changeRiskProfile`, {
+    const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/riskprofile`, {
       whatsappNumber: changeRiskData.whatsappNumber,
       riskProfile: changeRiskData.riskProfile,
       signature: signature,

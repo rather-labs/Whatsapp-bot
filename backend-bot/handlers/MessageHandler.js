@@ -66,7 +66,7 @@ class MessageHandler {
       console.log('checkSession');
       // Check session status and handle expiration
       const sessionResult = await this.sessionManager.checkAndHandleSession(whatsappNumber, contact);
-      
+      console.log('sessionResult', sessionResult);
       if (sessionResult.requiresPin || !sessionResult.registered) {
         return sessionResult.message;
       }
@@ -103,12 +103,12 @@ class MessageHandler {
     }
     
     // Profile commands
-    if (text === '/riskprofile') {
-      return await checkSession() || await this.getRiskProfileMessage();
+    if (text.startsWith('/riskprofile')) {
+      return await checkSession() || await this.getRiskProfileMessage(text, userId);
     }
     
-    if (text === '/authprofile') {
-      return await checkSession() || await this.getAuthProfileMessage();
+    if (text.startsWith('/authprofile')) {
+      return await checkSession() || await this.getAuthProfileMessage(text, userId);
     }
         
     // Admin commands
@@ -173,9 +173,9 @@ Or just say hello! 😊`;
     + Moderate - Balanced approach 
     + High - Aggressive investments with high yields
 • /authprofile <profile> - Check user auth profile
-    + High - The user must sign all transactions with the wallet 
-    + Medium - The user is required only a pin for transactions between users
-    + Low - The user only has to sign for fiat transactions
+    + Low - The user is not required to sign autorization for any actions
+    + Medium - The user can deposit or withdraw assets to their wallet without signing authorization
+    + High - The user is required to sign autorization for all actions
 
 *Admin Commands:*
 • /disconnect - Disconnect the bot (admin or bot number only)
@@ -368,9 +368,9 @@ Error: ${error.message}`;
     }
   }
 
-  handleDeposit(text, userId) {
+  async handleDeposit(text, userId) {
     const parts = text.split(' ');
-    if (parts.length < 2) {
+    if (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
       return `❌ *Invalid Deposit Command*
 
 Usage: /deposit <amount>
@@ -378,37 +378,13 @@ Example: /deposit 100
 
 Please provide the amount you want to deposit to the vault.`;
     }
-    
-    const amount = Number.parseInt(parts[1], 10);
-    
-    if (Number.isNaN(amount) || amount <= 0) {
-      return `❌ *Invalid Amount*
-
-Please provide a valid positive number for the deposit amount.`;
-    }
-    
-    if (!this.backendService.hasSufficientBalance(userId, amount)) {
-      const balance = this.backendService.getBalance(userId);
-      return `❌ *Insufficient Balance*
-
-Your balance: ${balance} USDC
-Deposit amount: ${amount} USDC
-
-You don't have enough USDC to deposit.`;
-    }
-    
     try {
-      this.backendService.removeFunds(userId, amount, 'vault_deposit');
-      const newBalance = this.backendService.getBalance(userId);
-      
-      return `✅ *Vault Deposit Successful!*
-
-🏦 Deposited: ${amount} USDC
-💰 New Balance: ${newBalance} USDC
-📈 APY: 5%
-📅 Time: ${new Date().toLocaleString()}
-
-Your USDC is now earning yield in the vault!`;
+      const amount = parts[1];
+      const response = await this.backendService.deposit(userId, amount, '')
+      if (response.externalUrl) {
+        return response.externalUrl;
+      }
+      return response.message;
     } catch (error) {
       return `❌ *Deposit Failed*
 
@@ -418,7 +394,7 @@ Error: ${error.message}`;
 
   async handleWithdraw(text, userId) {
     const parts = text.split(' ');
-    if (parts.length < 2) {
+    if (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
       return `❌ *Invalid Withdraw Command*
 
 Usage: /withdraw <amount>
@@ -426,15 +402,7 @@ Example: /withdraw 100
 
 Please provide the amount you want to withdraw from the vault.`;
     }
-    
-    const amount = Number.parseInt(parts[1], 10);
-    
-    if (Number.isNaN(amount) || amount <= 0) {
-      return `❌ *Invalid Amount*
-
-Please provide a valid positive number for the withdraw amount.`;
-    }
-    
+   
     try {
       this.backendService.addFunds(userId, amount, 'vault_withdraw');
       const newBalance = this.backendService.getBalance(userId);
@@ -453,34 +421,72 @@ Error: ${error.message}`;
     }
   }
 
-  async getRiskProfileMessage() {
-    return `🎯 *Risk Profile Management*
+  async getRiskProfileMessage(text, userId) {
+    const parts = text.split(' ');
+    if (parts.length > 2
+      || parts.length === 2 && !['low', 'moderate', 'high'].includes(parts[1].toLowerCase())) {
+      return `❌ *Invalid Risk Profile Command*
 
-Your current risk profile: Moderate
-
-Available profiles:
+Usage: /riskprofile <profile>
 • Low - Conservative investments
 • Moderate - Balanced approach
 • High - Aggressive investments
+• empty - Returns current risk profile
 
-To change your risk profile, contact support or use the web interface.
+Please provide the risk profile you want to set.`;
+    }
+    try {
+      let profile = '';
+      if (parts.length === 2) {
+        profile = parts[1];
+      }
+      const response = await this.backendService.riskProfile(userId, profile)
+      if (response.externalUrl) {
+        return response.externalUrl;
+      }
+      return response.message;
+    } catch (error) {
+      return `❌ *Authorization Profile setting failed*
 
-This affects your vault investment strategy and yield generation.`;
+Error: ${error.message}`;
+    }
   }
 
-  async getAuthProfileMessage() {
-    return `🔐 *Authentication Profile*
+  async getAuthProfileMessage(text, userId) {
+    const parts = text.split(' ');
+    if (parts.length > 2
+      || parts.length === 2 && !['low', 'medium', 'high'].includes(parts[1].toLowerCase())) {
+      return `❌ *Invalid Authorization Profile Command*
 
-Your current auth level: Basic
+Usage: /authprofile <profile>
+• Low - The user is not required to sign autorization for any actions
+• Medium - The user can deposit or withdraw assets to their wallet without signing authorization
+• High - The user is required to sign autorization for all actions
+• empty - Returns current authorization profile
 
-Available levels:
-• Basic - Standard security
-• Enhanced - 2FA enabled
-• Premium - Advanced security features
+Examples: 
+/authprofile Low
+/authprofile Medium
+/authprofile High
+/authprofile 
 
-To upgrade your auth profile, contact support or use the web interface.
+Please provide the authorization profile you want to set.`;
+    }
+    try {
+      let profile = '';
+      if (parts.length === 2) {
+        profile = parts[1];
+      }
+      const response = await this.backendService.authProfile(userId, profile)
+      if (response.externalUrl) {
+        return response.externalUrl;
+      }
+      return response.message;
+    } catch (error) {
+      return `❌ *Authorization Profile setting failed*
 
-This affects your transaction limits and security features.`;
+Error: ${error.message}`;
+    }
   }
 
   // Parse vCard message and extract fields

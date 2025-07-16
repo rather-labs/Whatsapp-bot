@@ -5,6 +5,7 @@ import { usePublicClient, useAccount, useWalletClient, useSwitchChain  } from 'w
 import { useSignature } from '../context/SignatureContext';
 import { type Domain, type Message, types } from '../utils/dataStructures';
 import type { APIError } from '@coinbase/onchainkit/api';
+import { parseErc6492Signature } from 'viem';
 
 export default function SignEIP712() {
 

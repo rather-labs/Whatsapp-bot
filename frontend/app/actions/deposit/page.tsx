@@ -81,7 +81,7 @@ export default function Home() {
           assets: BigInt(depositData.amount),
           nonce: nonce as bigint,
         });
-        setLabel(`Sign authorization to deposit ${depositData.amount} USDC`);
+        setLabel(`Sign to authorize deposit of ${depositData.amount} USDC`);
       }
       getNonce();
     }
@@ -100,6 +100,7 @@ export default function Home() {
       amount: depositData.amount,
       signature: signature,
     });
+    console.log('response', response);
     if (response.status === 200) {
       setAuthorizationSubmitted(true);
     } else {
