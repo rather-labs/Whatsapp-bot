@@ -79,7 +79,8 @@ export default function Home() {
         });
         setMessage({
           user: BigInt(changeAuthData.whatsappNumber),
-          authProfile: authProfiles.indexOf(changeAuthData.authProfile.toLowerCase()),
+          // Convert to bigint so that the value is ABI-encoded exactly the same way as a Solidity uint8.
+          authProfile: BigInt(authProfiles.indexOf(changeAuthData.authProfile.toLowerCase())),
           nonce: nonce as bigint,
         });
         setLabel(`Sign to authorize change of authorization profile to ${changeAuthData.authProfile}`);
@@ -100,7 +101,7 @@ export default function Home() {
       whatsappNumber: changeAuthData.whatsappNumber,
       profile: changeAuthData.authProfile,
       signature: signature,
-      nonce: Number(message?.nonce),
+      nonce: Number((message as import('@/app/utils/dataStructures').ChangeAuthProfileMessage | null)?.nonce),
     });
     if (response.status === 200) {
       setAuthorizationSubmitted(true);

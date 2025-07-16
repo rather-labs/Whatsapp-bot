@@ -56,7 +56,7 @@ export type ChangeRiskProfileMessage = {
 
 export type ChangeAuthProfileMessage = {
   user: bigint;
-  authProfile: number;
+  authProfile: bigint;
   nonce: bigint;
 };
 
