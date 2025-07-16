@@ -47,11 +47,15 @@ export default function Home() {
     }
   }, [tokenAddress, vaultAddress, setCalls]);
 
+
+
   useEffect(() => {
     async function checkRegistration() {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check/${whatsappNumber}`);
-      const data = response.data;
-      setIsSubmitted(data.registered);
+      if (whatsappNumber) {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check/${whatsappNumber}`);
+        const data = response.data;
+        setIsSubmitted(data.registered);
+      }
     }
     checkRegistration();
   }, [whatsappNumber]);
@@ -72,8 +76,6 @@ export default function Home() {
           pin: pin,
           wallet_address: address,
         });
-
-        console.log("Response status:", response.status);
         
         if (response.status === 200) {
           const data = response.data;
