@@ -7,7 +7,7 @@
  * - This ensures consistent timezone handling across all environments
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -19,7 +19,6 @@ import { limiter } from './middleware/security';
 // Import routes
 import healthRoutes from './routes/health';
 import userRoutes from './routes/users';
-import walletRoutes from './routes/wallet';
 import rampRoutes from './routes/ramps';
 import transferRoutes from './routes/transfers';
 import contactRoutes from './routes/contacts';
@@ -44,11 +43,8 @@ app.use('/api/', limiter);
 // API Routes
 app.use('/api', healthRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/wallet', walletRoutes);
 app.use('/api/ramps', rampRoutes);
-
 app.use('/api/transfers', transferRoutes);
-
 app.use('/api/contacts', contactRoutes);
 
 // Error handling middleware
