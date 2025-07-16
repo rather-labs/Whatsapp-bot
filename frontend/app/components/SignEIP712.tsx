@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { type LifecycleStatus, Signature } from '@coinbase/onchainkit/signature';
 import { usePublicClient, useAccount, useWalletClient, useSwitchChain  } from 'wagmi';
 import { useSignature } from '../context/SignatureContext';
-import { type Domain, types, type Message } from '../utils/dataStructures';
+import { type Domain, type Message, types } from '../utils/dataStructures';
 import type { APIError } from '@coinbase/onchainkit/api';
 
 export default function SignEIP712() {
@@ -37,7 +37,7 @@ export default function SignEIP712() {
       domain: domain as Domain,
       primaryType: primaryType,
       message: message as Message,
-      types
+      types: types[primaryType as keyof typeof types]
     }); 
     setIsSignatureValid(isNewSignatureValid);
 
@@ -56,7 +56,7 @@ export default function SignEIP712() {
       {message && (
         <Signature
           domain={domain as Domain}
-          types={types}
+          types={types[primaryType as keyof typeof types]}
           primaryType={primaryType} 
           message={message}
           label={label}

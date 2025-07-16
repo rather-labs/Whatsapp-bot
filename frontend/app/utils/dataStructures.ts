@@ -20,24 +20,10 @@ export type Domain = {
   verifyingContract: `0x${string}`;
 };
 
-export type PaymentData = {
-  whatsappNumber: string;
-  username: string;
-  recipientNumber: string;
-  recipientName: string;
-  amount: string;
-};
-
 export type DepositMessage = {
   user: bigint;
   assets: bigint;
   nonce: bigint;
-};
-
-export type DepositData = {
-  whatsappNumber: string;
-  amount: string;
-  signatureRequired: boolean;
 };
 
 export type WithdrawMessage = {
@@ -73,47 +59,55 @@ export type ChangeAuthProfileMessage = {
 };
 
 
-export const types = {
-    Permit: [
+
+export const types = { 
+  Permit: { Permit: [
       { name: "owner",    type: "address" },
       { name: "spender",  type: "address" },
       { name: "value",    type: "uint256" },
       { name: "nonce",    type: "uint256" },
       { name: "deadline", type: "uint256" },
     ],
-    deposit: [
+  } as const,
+  Deposit: { Deposit: [
       { name: "user",       type: "uint256" },
       { name: "assets",     type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
-    withdraw: [
+  } as const,
+  Withdraw: { Withdraw: [
       { name: "user",       type: "uint256" },
       { name: "assets",     type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
-    transfer: [
+  } as const,
+  Transfer: { Transfer: [
       { name: "user",       type: "uint256" },
       { name: "to",         type: "address" },
       { name: "assets",     type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
-    transferWithinVault: [
+  } as const,
+  TransferWithinVault: { TransferWithinVault: [
       { name: "userFrom",       type: "uint256" },
       { name: "userTo",         type: "uint256" },
       { name: "assets",     type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
-    changeRiskProfile: [
+  } as const,
+  ChangeRiskProfile: { ChangeRiskProfile: [
       { name: "user",       type: "uint256" },
       { name: "riskProfile",     type: "uint256" },
       { name: "nonce",     type: "uint256" }
     ],
-    changeAuthProfile: [
+  } as const,
+  ChangeAuthProfile: { ChangeAuthProfile: [
       { name: "user",       type: "uint256" },
       { name: "authProfile",     type: "uint256" },
       { name: "nonce",     type: "uint256" }
-    ]
-} as const;
+    ],
+  } as const,
+} ;
 
 export const domainTypes = {
     EIP712Domain: [

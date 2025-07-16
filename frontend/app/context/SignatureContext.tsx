@@ -45,7 +45,7 @@ export function SignatureProvider({ children }: { children: ReactNode }) {
       primaryType,
       setPrimaryType,
       label,
-      setLabel
+      setLabel,
     }}>
       {children}
     </SignatureContext.Provider>
