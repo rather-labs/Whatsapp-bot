@@ -42,7 +42,6 @@ export function parseVCard(vCardContent) {
         }
       }
     }
-    console.log('vCardData', vCardData);
 
     return vCardData;
 }

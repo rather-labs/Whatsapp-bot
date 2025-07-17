@@ -156,8 +156,8 @@ class BackendService {
   async buyAssets(whatsappNumber, amount) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/ramps/onramp`, {
-        whatsappNumber: whatsappNumber,
-        amount: amount
+        whatsappNumber,
+        amount
       });
       return response.data.message;
     } catch (error) {
@@ -169,8 +169,8 @@ class BackendService {
   async sellAssets(whatsappNumber, amount) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/ramps/offramp`, {
-        whatsappNumber: whatsappNumber,
-        amount: amount,
+        whatsappNumber,
+        amount,
       });
       return response.data.message;
     } catch (error) {
@@ -196,10 +196,10 @@ class BackendService {
   }
 
   // set wallet address for a contact
-  async setWallet(userId, contactId, contactAddress) {
+  async setWallet(whatsappNumber, contactId, contactAddress) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/contacts/setwallet`, {
-        userId,
+        whatsappNumber,
         contactId,
         contactAddress
       });
@@ -210,10 +210,10 @@ class BackendService {
   }
 
   // set contact information
-  async setContact(userId, contactName, contactNumber) {
+  async setContact(whatsappNumber, contactName, contactNumber) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/contacts/set`, {
-        userId, 
+        whatsappNumber, 
         contactName,
         contactNumber,
       });

@@ -25,7 +25,7 @@ class MessageHandler {
 
     // Check if message is a vCard
     if (message.type === 'vcard') {
-      return this.handleVCardMessage(message.body);
+      return this.handleVCardMessage(userId, message.body);
     }
     
     // Handle different commands
@@ -248,7 +248,7 @@ Use /pay, /buy, /sell, /deposit, or /withdraw to manage your USDC!`;
   // *****************************************************
   async handlePayment(text, whatsappNumber) {
     const parts = text.split(' ');
-    if  (parts.length !== 3 || Number.isNaN(Number(parts[1]))) {
+    if  (parts.length < 3 || Number.isNaN(Number(parts[1]))) {
       return `❌ *Invalid Payment Command*
 
 Usage: /pay <amount> <recipient>
@@ -371,38 +371,37 @@ Please provide the authorization profile you want to set.`;
   // *****************************************************
   async handleSetWallet(text, userId) {
     const parts = text.split(' ');
-    if (parts.length !== 3) {
+    if (parts.length < 3) {
       return `❌ *Invalid Set Wallet Command*
 
-Usage: /setwallet <contact name> <wallet address>
+Usage: /setwallet <wallet address> <contact name>
 Examples: 
-/setwallet Bob 0x123...456
-/setwallet 1234567890 0x123...456
+/setwallet 0x123...456 Bob
+/setwallet 0x123...456 1234567890
 
 Please provide the contact name and wallet address you want to set.
 
 If the contact is not a user of the bot, you must also set a wallet address for the contact.`;
     }
-    return await this.backendService.setWallet(userId, parts[1], parts[2]);
+    const contactName = parts.slice(2).join(' ');
+    return await this.backendService.setWallet(userId, contactName, parts[1]);
   }
 
   // *****************************************************
   // Parse vCard message and extract fields
-  async handleVCardMessage(messageBody) {
+  async handleVCardMessage(userId, messageBody) {
     try {
       const vCardData = parseVCard(messageBody);
       
       // Check if we extracted any meaningful data
       const hasData = vCardData.fn || vCardData.n || vCardData.waid || vCardData.phone;
-
-      console.log('vCardData', vCardData);
-      
+    
       if (!hasData) {
         return `❌ *Invalid contact information Format*
 
 I couldn't parse the contact information. Please make sure it's a valid contact information format with contact details.`;
       }
-      return await this.backendService.setContact(userId, vCardData.fn, vCardData.phone);
+      return await this.backendService.setContact(userId, vCardData.fn, vCardData.waid);
     } catch (error) {
       console.error('Error parsing vCard:', error);
       return `❌ *vCard Parsing Error*

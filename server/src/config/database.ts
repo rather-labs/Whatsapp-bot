@@ -56,13 +56,13 @@ function initializeDatabase(): void {
 export async function getContactWhatsappNumber(userNumber: string, contactName: string): Promise<string | null> {
   return new Promise((resolve, reject) => {
     db.get(
-      'SELECT contact_whatsapp_number FROM contacts WHERE user_whatsapp_number = ? AND contact_whatsapp_number = ?',
+      'SELECT contact_whatsapp_number FROM contacts WHERE user_whatsapp_number = ? AND name = ?',
       [userNumber, contactName],
       (err: any, row: any) => {
         if (err) {
           reject(err);
-        } else if (row?.contact_number) {
-          resolve(row.contact_number);
+        } else if (row?.contact_whatsapp_number) {
+          resolve(row.contact_whatsapp_number);
         } else {
           resolve(null);
         }
@@ -80,13 +80,13 @@ export async function getContactWhatsappNumber(userNumber: string, contactName: 
 export async function getContactWalletAddress(userNumber: string, contactNumber: string): Promise<string | null> {
   return new Promise((resolve, reject) => {
     db.get(
-      'SELECT contact_wallet_address FROM contacts WHERE user_whatsapp_number = ? AND name = ?',
+      'SELECT contact_wallet_address FROM contacts WHERE user_whatsapp_number = ? AND contact_whatsapp_number = ?',
       [userNumber, contactNumber],
       (err: any, row: any) => {
         if (err) {
           reject(err);
-        } else if (row?.contact_number) {
-          resolve(row.contact_number);
+        } else if (row?.contact_wallet_address) {
+          resolve(row.contact_wallet_address);
         } else {
           resolve(null);
         }

@@ -42,9 +42,11 @@ You don't have enough USDC for this payment to ${recipient}.`});
     }
 
     let recipientId = recipient;
+    console.log('recipientId', recipientId);
     if (!isValidNumber(recipientId) && !isValidAddress(recipientId)) {
       // Get recipient WhatsApp number from contacts table if recipient is a contact name
-      recipientId = await getContactWhatsappNumber(whatsappNumber, recipientId);
+      recipientId = await getContactWhatsappNumber(userData.userId, recipientId);
+      console.log('recipientId whatsapp number', recipientId);
       if (!recipientId) {
         return res.status(400).json({ message: recipientNotRegisteredMessage});
       }
@@ -52,19 +54,20 @@ You don't have enough USDC for this payment to ${recipient}.`});
 
     const recipientIsRegistered = await ContractService.isUserRegisteredOnChain(recipientId);
     if (!recipientIsRegistered) {
-      recipientId = await getContactWalletAddress(whatsappNumber, recipientId);
+      recipientId = await getContactWalletAddress(userData.userId, recipientId);
+      console.log('recipientId wallet address', recipientId);
       if (!recipientId) {
-      return res.status(400).json({ message: recipientNotRegisteredMessage});
+        return res.status(400).json({ message: recipientNotRegisteredMessage});
+      }
     }
 
     // Check auth profile 
     if (Number(userData.authProfile) < 2 ) {
       return res.status(200).json({ message: `To *authorize the payment*, tap in the link below
 
-        ${process.env.FRONTEND_URL}/actions/payment?whatsappNumber=${whatsappNumber}&recipient=${recipientId}&amount=${amount}
+        ${process.env.FRONTEND_URL}/actions/transfer?whatsappNumber=${userData.userId}&recipientName=${recipient}&recipient=${recipientId}&amount=${amount}
         
-        If you want to avoid this step, you can change your auth profile to *Low* with the */authprofile Low* instruction.`});
-        
+        If you want to avoid this step, you can change your auth profile to *Low* with the */authprofile Low* instruction.`});   
     }
     // Create URL for user authorized transaction
     const result = await ContractService.sendPayment(whatsappNumber, recipientId, amount);
@@ -173,7 +176,8 @@ If you want to avoid this step, you can change your auth profile to *Low* or *Me
 
 🏦 Transaction: ${result.transactionHash}
 📅 Time: ${new Date().toLocaleString()}
-`;
+
+Your assets are generating yield!`;
     } else {
       message = `❌ *Vault Deposit Failed*
       

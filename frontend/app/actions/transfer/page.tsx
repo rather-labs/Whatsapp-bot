@@ -12,6 +12,7 @@ type TransferData = {
   whatsappNumber: string | null;
   amount: string | null;
   recipient: string | null;
+  recipientName: string | null;
 };
 
 function isRecipientAddress(recipient: string) : boolean {
@@ -29,7 +30,8 @@ export default function Home() {
   const [transferData, setTransferData] = useState<TransferData>({
     whatsappNumber: null,
     amount: null,
-    recipient: null
+    recipient: null,
+    recipientName: null
   });
 
   const client = usePublicClient();
@@ -40,7 +42,8 @@ export default function Home() {
       setTransferData({
         whatsappNumber: params.get("whatsappNumber"),
         amount: params.get("amount"),
-        recipient: params.get("recipient")
+        recipient: params.get("recipient"),
+        recipientName: params.get("recipientName")
       });
     }
   }, []);
@@ -65,7 +68,18 @@ export default function Home() {
           abi: erc20Abi,
           functionName: 'decimals',
         });
-        setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipient}`);
+        if (transferData.recipientName === transferData.recipient)  {
+          setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipientName}`);
+        } else {
+          if (isRecipientAddress(transferData.recipient)) {
+
+            setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipientName}
+(${transferData.recipient.slice(0, 6)}...${transferData.recipient.slice(-4)})`);
+          } else {
+            setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipientName}
+(${transferData.recipient})`);
+          }
+          } 
         if (isRecipientAddress(transferData.recipient)) {
           setCalls([
             {
