@@ -33,7 +33,7 @@ class MessageHandler {
   // Process different commands
   async processCommand(text, message, contact, userId, whatsappNumber) {
     // Basic greetings
-    if (text === 'hello' || text === 'hi' || text === 'hey') {
+    if (!text.startsWith('/')) {
       return this.getGreetingMessage();
     }
 
@@ -126,59 +126,43 @@ class MessageHandler {
 
   // Command handlers
   getGreetingMessage() {
-    return `Hello! 👋 I'm your WhatsApp bot with smart wallet capabilities. How can I help you today?
+    return `Hello! 👋 
+  
+I'm *Chat-ching* , your trusted bot 🤖 with smart wallet capabilities 💸. 
+
+How can I help you today? 😎
     
-Available commands:
-• /help - Show this help message
-• /status - Check bot status
-• /info - Get information about this bot
-• /session - Check your session status
-• /register - Register a new user account
-• /balance - Check wallet and vault balances
-• /pay <amount> <recipient> - Pay USDC to another user
-• /buy <amount> - Buy USDC tokens and send to your wallet
-• /sell <amount> - Sell USDC tokens
-• /deposit <amount> - Deposit USDC from your wallet to vault to generate yield
-• /withdraw <amount> - Withdraw USDC from vault to your wallet
-• /riskprofile <profile> - Change user risk profile
-• /authprofile <profile> - Change user auth profile
-• /disconnect - Disconnect the bot (authorized users only)
-
-I can also parse contact information when you share contacts! 📇
-I will store them so you can pay them later! 💸
-
-Or just say hello! 😊`;
+type */help* to see available commands 😊`;
   }
 
   getHelpMessage() {
-    return `🤖 *Bot Commands*
+    return `🤖 *Commands*
 
 *Basic Commands:*
-• hello/hi/hey - Greet the bot
-• /help - Show this help message
-• /status - Check bot status
-• /info - Get information about this bot
+• */help* - Show this help message
+• */status* - Check bot status
+• */info* - Get information about this bot
 
 *User Commands:*
-• /register - Register a new user account
-• /session - Check your session status. It will expire after 5 minutes
-• /balance - Check wallet balance
-• /pay <amount> <recipient> - Pay USDC to another user
-• /buy <amount> - Buy USDC tokens and send to your wallet
-• /sell <amount> - Sell USDC tokens from your wallet
-• /deposit <amount> - Deposit USDC from your wallet to vault to generate yield
-• /withdraw <amount> - Withdraw USDC from vault to your wallet
-• /riskprofile <profile> - Change user risk profile
-    + Low - Conservative investments with low yields
-    + Moderate - Balanced approach 
-    + High - Aggressive investments with high yields
-• /authprofile <profile> - Check user auth profile
-    + Low - The user is not required to sign autorization for any actions
-    + Medium - The user can deposit or withdraw assets to their wallet without signing authorization
-    + High - The user is required to sign autorization for all actions
+• */register* - Register a new user account
+• */session* - Check your session status. It will expire after 5 minutes
+• */balance* - Check wallet balance
+• */pay <amount> <recipient>* - Pay USDC to another user
+• */buy <amount>* - Buy USDC tokens and send to your wallet
+• */sell <amount>* - Sell USDC tokens from your wallet
+• */deposit <amount>* - Deposit USDC from your wallet to vault to generate yield
+• */withdraw <amount>* - Withdraw USDC from vault to your wallet
+• */riskprofile <profile>* - Check and change user risk profile
+    • Low - Conservative investments with low yields
+    • Moderate - Balanced approach 
+    • High - Aggressive investments with high yields
+• */authprofile <profile>* - Check and change user authorization profile
+    • Low - The user is not required to sign autorization for any actions
+    • Medium - The user can deposit or withdraw assets to their wallet without signing authorization
+    • High - The user is required to sign autorization for all actions
 
 *Admin Commands:*
-• /disconnect - Disconnect the bot (admin or bot number only)
+• */disconnect* - Disconnect the bot (admin or bot number only)
 
 *Contact Features:*
 • Share contacts - I can parse contact information automatically for easier payments
@@ -188,8 +172,7 @@ Or just say hello! 😊`;
 • /buy 50
 • /sell 25
 • /deposit 200
-
-Need help? Just type /help anytime!`;
+`;
   }
   // *****************************************************
   getStatusMessage() {
@@ -209,8 +192,8 @@ The bot is currently ${botState.isReady ? 'online and ready to help!' : 'connect
   getInfoMessage() {
     return `ℹ️ *Bot Information*
 
-🤖 *WhatsApp Bot with Smart Wallet*
-Version: 2.0.0
+🤖 *Chat-ching Bot*
+Version: 0.1.0
 Framework: whatsapp-web.js
 Features: 
 • Real-time messaging
@@ -220,7 +203,6 @@ Features:
 • Contact management ✅
 • USDC payments ✅
 • Vault deposits ✅
-• Backend integration ✅
 
 This bot is built with Node.js and Express, designed to provide a seamless WhatsApp experience with backend wallet capabilities.`;
   }
@@ -482,7 +464,7 @@ Admin number: ${adminNumber || 'Not set'}`;
       if (result.success) {
         return `🔌 *Bot Disconnected Successfully!*
 
-The WhatsApp bot has been disconnected.
+The Chat-ching Bot has been disconnected.
 To reconnect, restart the server or scan the QR code again.
 
 Status: Disconnected

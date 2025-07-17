@@ -47,7 +47,7 @@ export function Providers(props: { children: ReactNode }) {
           projectId={process.env.NEXT_PUBLIC_PROJECT_ID}
           config={{ // Add paymaster to sponsor gas for the user
             appearance: {
-              name: 'Whatsapp Bot Base',
+              name: 'Chat-ching Bot ',
               logo: 'https://onchainkit.xyz/favicon/48x48.png?v4-19-24',
               mode: 'auto',
               theme: 'base',
