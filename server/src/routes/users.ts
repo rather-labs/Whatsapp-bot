@@ -229,7 +229,7 @@ router.post('/session/update', async (req: Request, res: Response) => {
 // Get/Set user authentication profile endpoint
 router.post('/authprofile', async (req: Request, res: Response) => {
   try {
-    const { whatsappNumber, profile, signature, nonce } = req.body;
+    const { whatsappNumber, profile } = req.body;
     
     const currentProfile = await ContractService.getAuthProfile(whatsappNumber);
 
@@ -238,7 +238,7 @@ router.post('/authprofile', async (req: Request, res: Response) => {
     if (profile === '') {
       return res.status(200).json({message: `Your current authorization profile is: *${authProfiles[currentProfile]}*`});
     }
-    if (Number(currentProfile) < 2 && !signature ) {
+    if (Number(currentProfile) < 2 ) {
       return res.status(200).json({ externalUrl: `To *Change authorization profile*, tap in the link below
 
 ${process.env.FRONTEND_URL}/actions/changeAuth?whatsappNumber=${userId}&profile=${profile}
@@ -250,8 +250,6 @@ If you want to avoid this step, you can change your auth profile to *Low*.
     const response = await ContractService.setAuthProfile(
       whatsappNumber, 
       authProfiles.indexOf(profile.toLowerCase()).toString(), 
-      signature?? '',
-      nonce?? -1n
     );
     return res.status(200).json({message: response.success ? `✅ Authorization profile set successfully to ${profile}` : '❌ Authorization profile setting failed'});
 

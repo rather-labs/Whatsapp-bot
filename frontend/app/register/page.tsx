@@ -41,7 +41,6 @@ export default function Home() {
         }
       ]);
     } else {
-      console.log('Clearing calls due to invalid addresses');
       // Clear calls if addresses are invalid
       setCalls(null);
     }

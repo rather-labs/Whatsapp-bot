@@ -7,7 +7,12 @@ import { Transaction, type TransactionResponse, type LifecycleStatus, Transactio
 
 export default function SignTransaction() {
 
-  const { setSuccess, disabled, setDisabled, calls } = useTransaction();
+  const { setSuccess,
+          disabled, setDisabled, 
+          calls, 
+          label, 
+          setReceipts
+  } = useTransaction();
   const { chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -20,9 +25,7 @@ export default function SignTransaction() {
   }, [walletClient?.chain.id, chainId, switchChain]); 
 
   const handleTransactionSuccess = async (tx: TransactionResponse) => {
-    console.log('Transaction successful:', tx);
-    console.log('Transaction receipt:', tx.transactionReceipts[0]);
-    setSuccess(tx.transactionReceipts[0].status === 'success');
+    setReceipts(tx.transactionReceipts);
   };
 
   const handleStatusChange = (newStatus: LifecycleStatus) => {
@@ -34,13 +37,14 @@ export default function SignTransaction() {
  
   // Additional check to ensure we don't render Transaction with invalid calls
   if (!calls || calls.length === 0) {
-    console.log('No valid calls to render');
     return (
       <div className="w-full p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
         <p>Waiting for transaction configuration...</p>
       </div>
     );
   }
+
+  console.log('calls', calls);
 
   return (
       <Transaction
@@ -50,7 +54,7 @@ export default function SignTransaction() {
         onStatus={handleStatusChange}
         isSponsored={true}
       >
-      <TransactionButton text="Approve token management" disabled={disabled} />
+      <TransactionButton text={label} disabled={disabled} />
       <TransactionSponsor />
       <TransactionToast>
         <TransactionToastIcon />

@@ -285,16 +285,13 @@ class ContractService {
    * @param profile - The profile to set 
    * @returns Transaction result
    */
-    async setAuthProfile(whatsappNumber: string, profile: string, signature: string, nonce = -1n): Promise<TransactionResult> {
-        console.log('setAuthProfile', whatsappNumber, profile, signature, nonce);
+    async setAuthProfile(whatsappNumber: string, profile: string): Promise<TransactionResult> {
+        console.log('setAuthProfile', whatsappNumber, profile);
         const userId = this.generateUserId(whatsappNumber);
 
-        let nonceToUse = nonce;
-        if (nonceToUse === -1n) {
-          nonceToUse = await this.vaultContract.read.getNonce([userId]);
-        }        
+        const nonce = await this.vaultContract.read.getNonce([userId]);
 
-        const hash = await this.relayerContract.write.ChangeAuthProfile([userId, Number(profile), nonceToUse, signature]);
+        const hash = await this.relayerContract.write.ChangeAuthProfile([userId, Number(profile), nonce]);
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
         console.log(`✅ Auth profile registered on-chain: User ID ${userId}, profile ${profile}`);
         console.log(`Transaction hash: ${receipt.transactionHash}`);

@@ -1,4 +1,4 @@
-export const authProfiles = ['low', 'medium', 'high'];
+export const authProfiles = ['high', 'medium', 'low'];
 
 export type Message = PermitMessage | TransactionMessage | DepositMessage | WithdrawMessage | TransferMessage | TransferWithinVaultMessage | ChangeRiskProfileMessage | ChangeAuthProfileMessage;
 
