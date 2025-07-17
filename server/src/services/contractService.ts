@@ -11,7 +11,8 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { publicClient, networkConfig, VAULT_ABI } from '../config/blockchain';
-import { isValidAddress } from '../utils/vault';
+import { isValidAddress, isValidNumber } from '../utils/vault';
+import { getRecipientNumber } from '../config/database';
 
 interface RegistrationResult {
   success: boolean;
@@ -218,7 +219,6 @@ class ContractService {
    * @returns Transaction result
    */
     async deposit(whatsappNumber: string, amount: string): Promise<TransactionResult> {
-        console.log('deposit', whatsappNumber, amount);
         const userId = this.generateUserId(whatsappNumber);
 
         const nonce = await this.vaultContract.read.getNonce([userId]);
@@ -247,7 +247,6 @@ class ContractService {
    * @returns Transaction result
    */
   async withdraw(whatsappNumber: string, amount: string): Promise<TransactionResult> {
-    console.log('withdraw', whatsappNumber, amount);
     const userId = this.generateUserId(whatsappNumber);
 
     const nonce = await this.vaultContract.read.getNonce([userId]);
@@ -266,7 +265,8 @@ class ContractService {
       transactionHash: receipt.transactionHash.toString(),
       blockNumber: Number(receipt.blockNumber).toString()
     };
-}
+  }
+
 
 
   /**
@@ -282,17 +282,15 @@ class ContractService {
         const userId = this.generateUserId(whatsappNumber);
  
         const nonce = await this.vaultContract.read.getNonce([userId]);
+
+        const decimals = Number(await this.usdcContract.read.decimals());
+        const amountToSend = Number(amount)*10**decimals;
  
         let hash: `0x${string}`;
         if (recipientIsAddress) {
-          hash = await this.relayerContract.write.transfer([userId, recipient, amount, nonce]);
+          hash = await this.relayerContract.write.transfer([userId, recipient, amountToSend, nonce]);
         } else {
-          // check if the recipient is registered as a contact for the user in the 
-          // database 
-          //const recipientId = this.generateUserId(recipient);
-          //const recipientId = this.isValidAddress(recipientId);
-
-          hash = await this.relayerContract.write.transferWithinVault([userId, recipient, amount, nonce]);
+          hash = await this.relayerContract.write.transferWithinVault([userId, recipient, amountToSend, nonce]);
         }
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
         console.log(`✅ Payment registered on-chain: User ID ${userId}, Recipient ${recipient}, amount ${amount}`);
@@ -326,7 +324,6 @@ class ContractService {
    * @returns Transaction result
    */
     async setAuthProfile(whatsappNumber: string, profile: string): Promise<TransactionResult> {
-        console.log('setAuthProfile', whatsappNumber, profile);
         const userId = this.generateUserId(whatsappNumber);
 
         const nonce = await this.vaultContract.read.getNonce([userId]);
@@ -364,7 +361,6 @@ class ContractService {
    * @returns Transaction result
    */
     async setRiskProfile(whatsappNumber: string, profile: string): Promise<TransactionResult> {
-        console.log('setRiskProfile', whatsappNumber, profile);
         const userId = this.generateUserId(whatsappNumber);
 
         const nonce = await this.vaultContract.read.getNonce([userId]);

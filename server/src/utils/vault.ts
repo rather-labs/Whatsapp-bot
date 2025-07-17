@@ -14,6 +14,18 @@ export function isValidAddress(address: string): boolean {
 }
 
 /**
+/**
+ * Checks if a string is a valid decimal number.
+ * Accepts only non-negative decimal numbers (no hex, no scientific notation).
+ * Returns true if the string represents a valid decimal number, false otherwise.
+ */
+export function isValidNumber(value: string): boolean {
+  if (typeof value !== 'string') return false;
+  // Allow only digits, optionally with a single decimal point, and no leading/trailing spaces
+  return /^\d+$/.test(value.trim());
+}
+
+/**
  * Remove non numeric values
  */
 export function getWhatsappNumberFromId(id: string): string {

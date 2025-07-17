@@ -194,6 +194,34 @@ class BackendService {
   getServerUrl() {
     return this.BACKEND_SERVER_URL;
   }
+
+  // set wallet address for a contact
+  async setWallet(userId, contactId, contactAddress) {
+    try {
+      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/contacts/setwallet`, {
+        userId,
+        contactId,
+        contactAddress
+      });
+      return response.data.message;
+    } catch (error) {
+      return error.response?.data.message || error.message;
+    }
+  }
+
+  // set contact information
+  async setContact(userId, contactName, contactNumber) {
+    try {
+      const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/contacts/set`, {
+        userId, 
+        contactName,
+        contactNumber,
+      });
+      return response.data.message;
+    } catch (error) {
+      return error.response?.data.message || error.message;
+    }
+  }
 }
 
 module.exports = BackendService; 

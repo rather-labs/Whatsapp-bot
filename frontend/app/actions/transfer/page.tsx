@@ -6,22 +6,30 @@ import { useAccount, usePublicClient } from 'wagmi';
 import { useTransaction } from '../../context/TransactionContext';
 import SignTransaction from '../../components/SignTransaction';
 import TokenVaultWithRelayerJson from '../../utils/TokenVaultWithRelayer.json' assert { type: "json" };
-import { riskProfiles } from '@/app/utils/dataStructures';
+import { erc20Abi } from 'viem';
 
-type ChangeAuthData = {
+type TransferData = {
   whatsappNumber: string | null;
-  authProfile: string | null;
+  amount: string | null;
+  recipient: string | null;
 };
+
+function isRecipientAddress(recipient: string) : boolean {
+  // Check if recipient is a valid hexadecimal address (0x-prefixed, 40 hex chars)
+  return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+}
 
 export default function Home() {
 
-  const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`
+  const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`;
+  const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`;
 
   const { address, isConnected } = useAccount();
   const { setCalls, setLabel, receipts } = useTransaction();
-  const [changeAuthData, setChangeAuthData] = useState<ChangeAuthData>({
+  const [transferData, setTransferData] = useState<TransferData>({
     whatsappNumber: null,
-    authProfile: null
+    amount: null,
+    recipient: null
   });
 
   const client = usePublicClient();
@@ -29,9 +37,10 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      setChangeAuthData({
+      setTransferData({
         whatsappNumber: params.get("whatsappNumber"),
-        authProfile: params.get("profile")
+        amount: params.get("amount"),
+        recipient: params.get("recipient")
       });
     }
   }, []);
@@ -41,35 +50,60 @@ export default function Home() {
       // Only set calls if both addresses are valid and not empty
       if (vaultAddress && vaultAddress !== '0x' 
           && client 
-          && changeAuthData.whatsappNumber
-          && changeAuthData.authProfile
+          && transferData.whatsappNumber
+          && transferData.amount
+          && transferData.recipient
         ) {
         const nonce = await client.readContract({
           address: vaultAddress,
           abi: TokenVaultWithRelayerJson.abi,
           functionName: 'getNonce',
-          args: [changeAuthData.whatsappNumber],
+          args: [transferData.whatsappNumber],
         });
-        setLabel(`Change risk profile to ${changeAuthData.authProfile}`);
-        setCalls([
-          {
-            address: vaultAddress as `0x${string}`, // 'to:' fails
-            abi: TokenVaultWithRelayerJson.abi,
-            functionName: 'ChangeRiskProfile',
-            args: [changeAuthData.whatsappNumber, 
-                   BigInt(riskProfiles.indexOf(changeAuthData.authProfile.toLowerCase())), 
-                   nonce
-                  ],
-            value: BigInt(0)
-          }
-        ]);
+        const decimals = await client.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'decimals',
+        });
+        setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipient}`);
+        if (isRecipientAddress(transferData.recipient)) {
+          setCalls([
+            {
+              address: vaultAddress as `0x${string}`, // 'to:' fails
+              abi: TokenVaultWithRelayerJson.abi,
+              functionName: 'transfer',
+              args: [
+                BigInt(transferData.whatsappNumber), 
+                transferData.recipient, 
+                BigInt(Number(transferData.amount)*10**Number(decimals)), 
+                nonce
+                ],
+              value: BigInt(0)
+            }
+          ]);
+        } else {
+          setCalls([
+            {
+              address: vaultAddress as `0x${string}`, // 'to:' fails
+              abi: TokenVaultWithRelayerJson.abi,
+              functionName: 'transferWithinVault',
+              args: [
+                BigInt(transferData.whatsappNumber), 
+                BigInt(transferData.recipient), 
+                BigInt(Number(transferData.amount)*10**Number(decimals)), 
+                nonce
+                ],
+              value: BigInt(0)
+            }
+          ]);
+        }
       } else {
         // Clear calls if addresses are invalid
         setCalls(null);
       }
     }
   getData();
-  }, [vaultAddress, setCalls, changeAuthData, setLabel, client]);
+  }, [vaultAddress, setCalls, transferData, setLabel, client, tokenAddress]);
 
 
   useEffect(() => {
@@ -92,7 +126,7 @@ export default function Home() {
         {receipts && receipts[0].status === 'success' && (
           <div className="flex justify-center">
             <div className="text-[#276749] bg-[#F0FFF4] rounded-md px-4 py-2 text-lg font-bold self-center">
-              Risk profile changed successfully. <br/>
+              Transfer successful. <br/>
               You may now close this window.
             </div>
           </div>

@@ -1,4 +1,6 @@
 const SessionManager = require('../services/SessionManager');
+const { parseVCard } = require('../utils/contact');
+const { formatTimestamp } = require('../utils/utils');
 
 class MessageHandler {
   constructor(connectionManager, backendService) {
@@ -115,6 +117,10 @@ class MessageHandler {
     if (text === '/disconnect') {
       return await checkSession() || await this.handleDisconnect(message, whatsappNumber);
     }
+
+    if (text.startsWith('/setwallet')) {
+      return await checkSession() || await this.handleSetWallet(text, userId);
+    }
     
     // Default response for unrecognized messages
     if (text.length > 0) {
@@ -166,6 +172,7 @@ type */help* to see available commands 😊`;
 
 *Contact Features:*
 • Share contacts - I can parse contact information automatically for easier payments
+• /setwallet <contact name> <wallet address> - Set a wallet address for a contact to be used for payments if the contact is not a user of the bot
 
 *Examples:*
 • /pay 100 1234567890
@@ -333,6 +340,7 @@ Please provide the risk profile you want to set.`;
     return await this.backendService.riskProfile(userId, profile);
   }
 
+  // *****************************************************
   async getAuthProfileMessage(text, userId) {
     const parts = text.split(' ');
     if (parts.length > 2
@@ -360,28 +368,41 @@ Please provide the authorization profile you want to set.`;
     return await this.backendService.authProfile(userId, profile);
   }
 
+  // *****************************************************
+  async handleSetWallet(text, userId) {
+    const parts = text.split(' ');
+    if (parts.length !== 3) {
+      return `❌ *Invalid Set Wallet Command*
+
+Usage: /setwallet <contact name> <wallet address>
+Examples: 
+/setwallet Bob 0x123...456
+/setwallet 1234567890 0x123...456
+
+Please provide the contact name and wallet address you want to set.
+
+If the contact is not a user of the bot, you must also set a wallet address for the contact.`;
+    }
+    return await this.backendService.setWallet(userId, parts[1], parts[2]);
+  }
+
+  // *****************************************************
   // Parse vCard message and extract fields
-  handleVCardMessage(messageBody) {
+  async handleVCardMessage(messageBody) {
     try {
-      const vCardData = this.parseVCard(messageBody);
+      const vCardData = parseVCard(messageBody);
       
       // Check if we extracted any meaningful data
       const hasData = vCardData.fn || vCardData.n || vCardData.waid || vCardData.phone;
+
+      console.log('vCardData', vCardData);
       
       if (!hasData) {
         return `❌ *Invalid contact information Format*
 
 I couldn't parse the contact information. Please make sure it's a valid contact information format with contact details.`;
       }
-
-      return `📇 *Contact Information Parsed*
-
-👤 *Name:* ${vCardData.fn || 'Not provided'}
-📝 *Full Name:* ${vCardData.n || 'Not provided'}
-📞 *Phone Number:* ${vCardData.phone || 'Not provided'}
-
-✅ Contact information successfully extracted!
-You can use this information for payments or other operations.`;
+      return await this.backendService.setContact(userId, vCardData.fn, vCardData.phone);
     } catch (error) {
       console.error('Error parsing vCard:', error);
       return `❌ *vCard Parsing Error*
@@ -391,55 +412,7 @@ Please try sharing the contact again.`;
     }
   }
 
-  // Parse vCard content and extract specific fields
-  parseVCard(vCardContent) {
-    const lines = vCardContent.split('\n');
-    const vCardData = {};
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      
-      // Skip empty lines and vCard boundaries
-      if (!trimmedLine || trimmedLine === 'begin:vcard' || trimmedLine === 'end:vcard' || trimmedLine.startsWith('version:')) {
-        continue;
-      }
-
-      // Parse FN (Formatted Name)
-      if (trimmedLine.toLowerCase().startsWith('fn:')) {
-        vCardData.fn = trimmedLine.substring(3);
-      }
-      
-      // Parse N (Name)
-      if (trimmedLine.toLowerCase().startsWith('n:')) {
-        vCardData.n = trimmedLine.substring(2);
-      }
-      
-      // Parse TEL with type and waid
-      if (trimmedLine.toLowerCase().startsWith('tel;')) {
-        // Extract type
-        const typeMatch = trimmedLine.match(/type=([^;]+)/);
-        if (typeMatch) {
-          vCardData.type = typeMatch[1];
-        }
-        
-        // Extract waid
-        const waidMatch = trimmedLine.match(/waid=([^:]+)/);
-        if (waidMatch) {
-          vCardData.waid = waidMatch[1];
-        }
-        
-        // Extract phone number (after the last colon)
-        const phoneMatch = trimmedLine.match(/:([^:]+)$/);
-        if (phoneMatch) {
-          vCardData.phone = phoneMatch[1];
-        }
-      }
-    }
-    console.log('vCardData', vCardData);
-
-    return vCardData;
-  }
-
+  // *****************************************************
   async handleDisconnect(message, whatsappNumber) {
     try {
       // Check if user is authorized to disconnect
@@ -468,7 +441,7 @@ The Chat-ching Bot has been disconnected.
 To reconnect, restart the server or scan the QR code again.
 
 Status: Disconnected
-Time: ${this.formatTimestamp(new Date().toISOString())}`;
+Time: ${formatTimestamp(new Date().toISOString())}`;
       }
       
       return `❌ *Disconnect Error*
@@ -491,50 +464,10 @@ Error: ${error.message}`;
 
 But I don't understand what you mean 🙃 
 
-Try these commands:
-• /help - Show this help message
-• /status - Check bot status
-• /info - Get information about this bot
-• /session - Check your session status
-• /register - Register a new user account
-• /balance - Check wallet and vault balances
-• /pay <amount> <recipient> - Pay USDC to another user
-• /buy <amount> - Buy USDC tokens and send to your wallet
-• /sell <amount> - Sell USDC tokens
-• /deposit <amount> - Deposit USDC to vault to generate yield
-• /withdraw <amount> - Withdraw USDC from vault to your wallet
-• /riskprofile <profile> - Change user risk profile
-• /authprofile <profile> - Change user auth profile
-• /disconnect - Disconnect the bot (authorized users only)
-
-I can also parse contact information when you share contacts! 📇
-I will store them so you can pay them later! 💸
-
-Or just say hello! 😊`;
+Send */help* to see available commands 😊`;
   }
 
-  // Utility function to format UTC timestamps in user's locale
-  formatTimestamp(utcTimestamp, options = {}) {
-    if (!utcTimestamp) return 'Never';
-    
-    try {
-      const date = new Date(utcTimestamp);
-      const defaultOptions = {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZoneName: 'short'
-      };
-      
-      return date.toLocaleString(undefined, { ...defaultOptions, ...options });
-    } catch (error) {
-      console.error('Error formatting timestamp:', error);
-      return 'Invalid Date';
-    }
-  }
+
 
   // Handle session status command
   async handleSessionStatus(whatsappNumber, contact) {
@@ -550,8 +483,8 @@ Or just say hello! 😊`;
       }
 
       const status = sessionInfo.expired ? '🔴 Expired' : '🟢 Active';
-      const lastActivity = sessionInfo.lastActivityFormatted || this.formatTimestamp(sessionInfo.lastActivity);
-      const expirationTime = sessionInfo.expirationTimeFormatted || this.formatTimestamp(sessionInfo.expirationTime);
+      const lastActivity = sessionInfo.lastActivityFormatted || formatTimestamp(sessionInfo.lastActivity);
+      const expirationTime = sessionInfo.expirationTimeFormatted || formatTimestamp(sessionInfo.expirationTime);
       
       if (sessionInfo.expired) {
         const timestamp = new Date();

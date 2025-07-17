@@ -1,10 +1,17 @@
 import express, { type Response, type Request } from 'express';
-import db from '../config/database';
 import { authenticateToken, type AuthenticatedRequest } from '../middleware/auth';
 import ContractService from '../services/contractService';
-import { authProfiles, isValidAddress } from '../utils/vault';
+import { isValidAddress, isValidNumber } from '../utils/vault';
+import { getContactWhatsappNumber, getContactWalletAddress } from '../config/database';
 
 const router = express.Router();
+
+const recipientNotRegisteredMessage = `❌ *Recipient not identified*
+
+Please provide a valid *recipient number*, *contact name* or *wallet address*.
+
+To send a contact name, you must *share your contact* with me.
+If the contact is not a user you must also *set a wallet address* for the contact.`;
 
 // Transfer to external wallet or other user inside the vault
 router.post('/pay', async (req: Request, res: Response) => {
@@ -19,11 +26,11 @@ Please provide a valid positive number for the payment amount.`});
 
     const userData = await ContractService.getUserOnChainData(whatsappNumber);
     
-    if (userData.walletBalance + userData.vaultBalance < amount) {
+    if (Number(userData.walletBalance) + Number(userData.vaultBalance) < Number(amount)) {
       return res.status(400).json({ message: `❌ *Insufficient Balance*
 
-Your wallet balance: ${userData.walletBalance} USDC
 Your vault balance: ${userData.vaultBalance} USDC
+Your wallet balance: ${userData.walletBalance} USDC
 Payment amount: ${amount} USDC
 
 You don't have enough USDC for this payment to ${recipient}.`});
@@ -34,17 +41,33 @@ You don't have enough USDC for this payment to ${recipient}.`});
         Payment amount: ${amount} USDC`});
     }
 
+    let recipientId = recipient;
+    if (!isValidNumber(recipientId) && !isValidAddress(recipientId)) {
+      // Get recipient WhatsApp number from contacts table if recipient is a contact name
+      recipientId = await getContactWhatsappNumber(whatsappNumber, recipientId);
+      if (!recipientId) {
+        return res.status(400).json({ message: recipientNotRegisteredMessage});
+      }
+    }
+
+    const recipientIsRegistered = await ContractService.isUserRegisteredOnChain(recipientId);
+    if (!recipientIsRegistered) {
+      recipientId = await getContactWalletAddress(whatsappNumber, recipientId);
+      if (!recipientId) {
+      return res.status(400).json({ message: recipientNotRegisteredMessage});
+    }
+
     // Check auth profile 
-    if (Number(authProfiles[userData.authProfile.toLowerCase()]) < 2 ) {
+    if (Number(userData.authProfile) < 2 ) {
       return res.status(200).json({ message: `To *authorize the payment*, tap in the link below
 
-        ${process.env.FRONTEND_URL}/actions/payment?whatsappNumber=${whatsappNumber}&recipient=${recipient}&amount=${amount}
+        ${process.env.FRONTEND_URL}/actions/payment?whatsappNumber=${whatsappNumber}&recipient=${recipientId}&amount=${amount}
         
         If you want to avoid this step, you can change your auth profile to *Low* with the */authprofile Low* instruction.`});
         
     }
     // Create URL for user authorized transaction
-    const result = await ContractService.sendPayment(whatsappNumber, recipient, amount);
+    const result = await ContractService.sendPayment(whatsappNumber, recipientId, amount);
     let message = '';
     if (result.success) {
        message = `✅ *Payment of ${amount} USDC Successful to ${recipient}!*
@@ -76,10 +99,7 @@ router.post('/withdraw', async (req: Request, res: Response) => {
 Please provide a valid positive number for the withdrawal amount.`});
     }
 
-    const decimals = Number(await ContractService.getDecimals());
-    const amountToWithdraw = Number(amount)*10**decimals;
-
-    if (Number(userData.vaultBalance) < amountToWithdraw) {
+    if (Number(userData.vaultBalance) < Number(amount)) {
       return res.status(400).json({ message: `❌ *Insufficient Balance*
 
 Vault balance: ${userData.vaultBalance} USDC
@@ -128,10 +148,7 @@ router.post('/deposit', async (req: Request, res: Response) => {
 Please provide a valid positive number for the deposit amount.`});
     }
 
-    const decimals = Number(await ContractService.getDecimals());
-    const amountToDeposit = Number(amount)*10**decimals;
-
-    if (Number(userData.walletBalance) < amountToDeposit) {
+    if (Number(userData.walletBalance) < Number(amount)) {
       return res.status(400).json({ message: `❌ *Insufficient Balance*
 
 Your wallet balance: ${userData.walletBalance} USDC
