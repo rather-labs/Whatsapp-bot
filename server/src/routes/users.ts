@@ -10,12 +10,6 @@ import { encryptUserPin } from '../utils/crypto';
 import e from 'express';
 import { authProfiles, riskProfiles } from '../utils/vault';
 
-interface UserRow {
-  whatsapp_number: string;
-  username?: string;
-  wallet_address?: string;
-  encrypted_pin?: string;
-}
 
 const router = express.Router();
 
@@ -24,7 +18,7 @@ router.get('/check/:whatsapp_number', async (req: Request, res: Response) => {
   const { whatsapp_number } = req.params;
 
   if (!whatsapp_number) {
-    return res.status(400).json({ error: 'WhatsApp number is required' });
+    return res.status(400).json({ message: 'WhatsApp number is required' });
   }
 
   try {
@@ -40,8 +34,7 @@ router.get('/check/:whatsapp_number', async (req: Request, res: Response) => {
       message: 'User not registered on blockchain'
     });
   } catch (error) {
-    console.error('❌ Registration check error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ message: `Internal server error ${error.message}` });
   }
 });
 
@@ -50,7 +43,7 @@ router.get('/data/:whatsapp_number', async (req: Request, res: Response) => {
   const { whatsapp_number } = req.params;
 
   if (!whatsapp_number) {
-    return res.status(400).json({ error: 'WhatsApp number is required' });
+    return res.status(400).json({ message: 'WhatsApp number is required' });
   }
 
   try {
@@ -76,10 +69,9 @@ router.get('/data/:whatsapp_number', async (req: Request, res: Response) => {
     if (createdAt) {
       (user as any).createdAt = createdAt;
     }
-    return res.json(user);
+    return res.status(200).json(user);
   } catch (error) {
-    console.error('❌ Registration check error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ message: `Internal server error ${error.message}` });
   }
 });
 
@@ -89,23 +81,23 @@ router.post('/register', async (req: Request, res: Response) => {
     const { whatsapp_number, username, pin, wallet_address } = req.body;
     
     if (!whatsapp_number || !pin) {
-      return res.status(400).json({ error: 'WhatsApp number and PIN are required' });
+      return res.status(400).json({ message: 'WhatsApp number and PIN are required' });
     }
 
     if (!wallet_address) {
-      return res.status(400).json({ error: 'Wallet address is required for on-chain registration' });
+      return res.status(400).json({ message: 'Wallet address is required for on-chain registration' });
     }
 
     // Validate PIN format (4-6 digits)
     const pinNumber = Number.parseInt(pin, 10);
     if (Number.isNaN(pinNumber) || pinNumber < 1000 || pinNumber > 999999) {
-      return res.status(400).json({ error: 'PIN must be a 4-6 digit number' });
+      return res.status(400).json({ message: 'PIN must be a 4-6 digit number' });
     }
 
 
     const isRegisteredOnChain = await ContractService.isUserRegisteredOnChain(whatsapp_number);
     if (isRegisteredOnChain) {
-      return res.status(409).json({ error: 'User already exists' });
+      return res.status(409).json({ message: 'User already exists' });
     }
 
     console.log("🔄 Starting registration...");
@@ -120,7 +112,6 @@ router.post('/register', async (req: Request, res: Response) => {
         [whatsapp_number, username, encryptedPin, wallet_address, 0, 0, utcTimestamp, utcTimestamp], 
         (err: Error | null) => {
           if (err) {
-            console.error('❌ Database insertion failed:', err);
             return res.status(500).json({ error: 'Failed to create user in database' });
           }
         }
@@ -133,8 +124,7 @@ router.post('/register', async (req: Request, res: Response) => {
          vaultBalance: 0,
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: `Internal server error ${error.message}` });
   }
 });
 
@@ -148,8 +138,7 @@ router.get('/session/status/:whatsapp_number', async (req: Request, res: Respons
     return res.json({sessionStatus: await getUserSessionStatus(whatsapp_number)});
 
   } catch (error) {
-    console.error('❌ Session status error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: `Internal server error ${error.message}` });
   }
 });
 
@@ -160,7 +149,7 @@ router.post('/session/validate', async (req: Request, res: Response) => {
 
     const sessionStatus = await getUserSessionStatus(whatsapp_number);
     if (!sessionStatus.exists) {
-      return res.status(404).json({ error: '*User not found*, check that you have registered' });
+      return res.status(404).json({ message: '*User not found*, check that you have registered' });
     }
 
     // Get encrypted pin from database
@@ -178,7 +167,7 @@ router.post('/session/validate', async (req: Request, res: Response) => {
 
     if (user.encrypted_pin !== encryptedPin) {
       return res.status(401).json({ 
-        error: "*Invalid credentials*, use the PIN you set upon registration\n\nPlease enter your PIN to continue:\n\n*PIN:* (4-6 digits)" });
+        message: "*Invalid credentials*, use the PIN you set upon registration\n\nPlease enter your PIN to continue:\n\n*PIN:* (4-6 digits)" });
     }
 
     // update user activity    
@@ -198,8 +187,7 @@ router.post('/session/validate', async (req: Request, res: Response) => {
     return res.json({success: true});
 
   } catch (error) {
-    console.error('❌ Session validation error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -221,8 +209,7 @@ router.post('/session/update', async (req: Request, res: Response) => {
     });
     return res.json({success: true});
   } catch (error) {
-    console.error('❌ Session update error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -239,7 +226,7 @@ router.post('/authprofile', async (req: Request, res: Response) => {
       return res.status(200).json({message: `Your current authorization profile is: *${authProfiles[currentProfile]}*`});
     }
     if (Number(currentProfile) < 2 ) {
-      return res.status(200).json({ externalUrl: `To *Change authorization profile*, tap in the link below
+      return res.status(200).json({ message: `To *Change authorization profile*, tap in the link below
 
 ${process.env.FRONTEND_URL}/actions/changeAuth?whatsappNumber=${userId}&profile=${profile}
         
@@ -257,8 +244,7 @@ If you want to avoid this step, you can change your authorization profile to *Lo
     });
 
   } catch (error) {
-    console.error('❌ Auth profile error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
@@ -278,7 +264,7 @@ router.post('/riskprofile', async (req: Request, res: Response) => {
     const currentAuthProfile = await ContractService.getAuthProfile(whatsappNumber);
 
     if (Number(currentAuthProfile) < 2 ) {
-      return res.status(200).json({ externalUrl: `To *Change risk profile*, tap in the link below
+      return res.status(200).json({ message: `To *Change risk profile*, tap in the link below
 
 ${process.env.FRONTEND_URL}/actions/changeRisk?whatsappNumber=${userId}&profile=${profile}
         
@@ -296,8 +282,7 @@ If you want to avoid this step, you can change your authorization profile to *Lo
     });
 
   } catch (error) {
-    console.error('❌ Risk profile error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 

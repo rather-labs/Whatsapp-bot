@@ -6,7 +6,6 @@ import { useAccount, usePublicClient } from 'wagmi';
 import { useTransaction } from '../../context/TransactionContext';
 import SignTransaction from '../../components/SignTransaction';
 import TokenVaultWithRelayerJson from '../../utils/TokenVaultWithRelayer.json' assert { type: "json" };
-import { riskProfiles } from '@/app/utils/dataStructures';
 import { erc20Abi } from 'viem';
 
 type DepositData = {

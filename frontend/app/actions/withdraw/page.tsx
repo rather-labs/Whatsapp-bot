@@ -6,22 +6,23 @@ import { useAccount, usePublicClient } from 'wagmi';
 import { useTransaction } from '../../context/TransactionContext';
 import SignTransaction from '../../components/SignTransaction';
 import TokenVaultWithRelayerJson from '../../utils/TokenVaultWithRelayer.json' assert { type: "json" };
-import { riskProfiles } from '@/app/utils/dataStructures';
+import { erc20Abi } from 'viem';
 
-type ChangeAuthData = {
+type WithdrawData = {
   whatsappNumber: string | null;
-  authProfile: string | null;
+  amount: string | null;
 };
 
 export default function Home() {
 
   const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`
+  const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`
 
   const { address, isConnected } = useAccount();
   const { setCalls, setLabel, receipts } = useTransaction();
-  const [changeAuthData, setChangeAuthData] = useState<ChangeAuthData>({
+  const [withdrawData, setWithdrawData] = useState<WithdrawData>({
     whatsappNumber: null,
-    authProfile: null
+    amount: null
   });
 
   const client = usePublicClient();
@@ -29,9 +30,9 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      setChangeAuthData({
+      setWithdrawData({
         whatsappNumber: params.get("whatsappNumber"),
-        authProfile: params.get("profile")
+        amount: params.get("amount")
       });
     }
   }, []);
@@ -41,23 +42,28 @@ export default function Home() {
       // Only set calls if both addresses are valid and not empty
       if (vaultAddress && vaultAddress !== '0x' 
           && client 
-          && changeAuthData.whatsappNumber
-          && changeAuthData.authProfile
+          && withdrawData.whatsappNumber
+          && withdrawData.amount
         ) {
         const nonce = await client.readContract({
           address: vaultAddress,
           abi: TokenVaultWithRelayerJson.abi,
           functionName: 'getNonce',
-          args: [changeAuthData.whatsappNumber],
+          args: [withdrawData.whatsappNumber],
         });
-        setLabel(`Change risk profile to ${changeAuthData.authProfile}`);
+        const decimals = await client.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'decimals',
+        });
+        setLabel(`Withdraw ${withdrawData.amount} USDC`);
         setCalls([
           {
             address: vaultAddress as `0x${string}`, // 'to:' fails
             abi: TokenVaultWithRelayerJson.abi,
-            functionName: 'ChangeRiskProfile',
-            args: [changeAuthData.whatsappNumber, 
-                   BigInt(riskProfiles.indexOf(changeAuthData.authProfile.toLowerCase())), 
+            functionName: 'withdraw',
+            args: [withdrawData.whatsappNumber, 
+                   BigInt(Number(withdrawData.amount)*10**Number(decimals)), 
                    nonce
                   ],
             value: BigInt(0)
@@ -69,7 +75,7 @@ export default function Home() {
       }
     }
   getData();
-  }, [vaultAddress, setCalls, changeAuthData, setLabel, client]);
+  }, [vaultAddress, setCalls, withdrawData, setLabel, client, tokenAddress]);
 
 
   useEffect(() => {

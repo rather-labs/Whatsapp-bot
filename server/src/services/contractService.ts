@@ -106,6 +106,14 @@ class ContractService {
     // Convert to uint256 (take first 32 bytes)
     return BigInt(cleanNumber); 
   }
+
+    /**
+   * Get the decimals of the USDC token
+   * @returns Decimals as number
+   */
+    async getDecimals(): Promise<number> {
+      return Number(await this.usdcContract.read.decimals());
+    }
   
   /**
    * Check if user is registered on-chain
@@ -181,13 +189,13 @@ class ContractService {
         this.vaultContract.read.getUserAuthProfile([userId]),
         this.vaultContract.read.getUserAssets([userId])
       ]);
+      if (walletAddress === '0x0000000000000000000000000000000000000000') {
+        throw new Error('User not registered on-chain');
+      }
 
       const decimals = Number(await this.usdcContract.read.decimals());
       const walletBalance = Number(await this.usdcContract.read.balanceOf([walletAddress]))/10**decimals;
       const vaultBalance = Number(assets)/10**decimals;
-      if (walletAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error('User not registered on-chain');
-      }
 
       return {
         userId: userId.toString(),
@@ -219,6 +227,7 @@ class ContractService {
         const amountToDeposit = Number(amount)*10**decimals;
         const hash = await this.relayerContract.write.deposit([userId, amountToDeposit, nonce]);
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+
         console.log(`✅ Deposit registered on-chain: User ID ${userId}, amount ${amount}`);
         console.log(`Transaction hash: ${receipt.transactionHash}`);
   
@@ -230,6 +239,35 @@ class ContractService {
           blockNumber: Number(receipt.blockNumber).toString()
         };
     }
+
+  /**
+   * Send withdrawal
+   * @param whatsappNumber - User's WhatsApp number
+   * @param amount - The amount to withdraw
+   * @returns Transaction result
+   */
+  async withdraw(whatsappNumber: string, amount: string): Promise<TransactionResult> {
+    console.log('withdraw', whatsappNumber, amount);
+    const userId = this.generateUserId(whatsappNumber);
+
+    const nonce = await this.vaultContract.read.getNonce([userId]);
+
+    const decimals = Number(await this.usdcContract.read.decimals());
+    const amountToWithdraw = Number(amount)*10**decimals;
+    const hash = await this.relayerContract.write.withdraw([userId, amountToWithdraw, nonce]);
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    console.log(`✅ Withdrawal registered on-chain: User ID ${userId}, amount ${amount}`);
+    console.log(`Transaction hash: ${receipt.transactionHash}`);
+
+    return {
+      success: receipt.status === 'success',
+      functionName: 'withdraw',
+      userId: userId.toString(),
+      transactionHash: receipt.transactionHash.toString(),
+      blockNumber: Number(receipt.blockNumber).toString()
+    };
+}
+
 
   /**
    * Send payment
@@ -249,6 +287,11 @@ class ContractService {
         if (recipientIsAddress) {
           hash = await this.relayerContract.write.transfer([userId, recipient, amount, nonce]);
         } else {
+          // check if the recipient is registered as a contact for the user in the 
+          // database 
+          //const recipientId = this.generateUserId(recipient);
+          //const recipientId = this.isValidAddress(recipientId);
+
           hash = await this.relayerContract.write.transferWithinVault([userId, recipient, amount, nonce]);
         }
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });

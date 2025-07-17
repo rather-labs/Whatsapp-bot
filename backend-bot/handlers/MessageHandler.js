@@ -79,11 +79,11 @@ class MessageHandler {
 
     
     if (text === '/balance') {
-      return await checkSession() || await this.handleBalance(whatsappNumber);
+      return await checkSession() || await this.handleBalance(userId);
     }
     
     if (text.startsWith('/pay')) {
-      return await checkSession() || await this.handlePayment(text, userId, whatsappNumber);
+      return await checkSession() || await this.handlePayment(text, userId);
     }
     
     if (text.startsWith('/buy')) {
@@ -191,7 +191,7 @@ Or just say hello! 😊`;
 
 Need help? Just type /help anytime!`;
   }
-
+  // *****************************************************
   getStatusMessage() {
     const botState = this.connectionManager.getBotState();
     return `📊 *Bot Status*
@@ -205,6 +205,7 @@ Need help? Just type /help anytime!`;
 The bot is currently ${botState.isReady ? 'online and ready to help!' : 'connecting...'}`;
   }
 
+  // *****************************************************
   getInfoMessage() {
     return `ℹ️ *Bot Information*
 
@@ -224,6 +225,7 @@ Features:
 This bot is built with Node.js and Express, designed to provide a seamless WhatsApp experience with backend wallet capabilities.`;
   }
 
+  // *****************************************************
   async handleRegisterUser(whatsappNumber, contact) {
     // Try to register user with backend server
     const user = await this.backendService.getUserData(whatsappNumber);
@@ -242,8 +244,10 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=$
 `;
 }
 
+  // *****************************************************
   async handleBalance(whatsappNumber) {
     const user = await this.backendService.getUserData(whatsappNumber);
+    if (user.error) { return user.error;}
     return `💰 *User Balance*
 
 💎 On Vault: ${user.vaultBalance} USDC
@@ -252,10 +256,10 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=$
 Use /pay, /buy, /sell, /deposit, or /withdraw to manage your USDC!`;
   }
 
-  async handlePayment(text, userId, whatsappNumber) {
+  // *****************************************************
+  async handlePayment(text, whatsappNumber) {
     const parts = text.split(' ');
-
-    if (parts.length < 3) {
+    if  (parts.length !== 3 || Number.isNaN(Number(parts[1]))) {
       return `❌ *Invalid Payment Command*
 
 Usage: /pay <amount> <recipient>
@@ -266,31 +270,14 @@ Examples:
 
 Please provide both amount and recipient number, contact name or wallet address.`;
     }
-    
-    const amount = Number.parseInt(parts[1], 10);
     const recipient = parts.slice(2).join(' ');
-  
-    try {
-      // Transfer funds
-      const response = await this.backendService.sendPayment(whatsappNumber, recipient, amount);
-      if (response.externalUrl) {
-        return response.externalUrl;
-      }
-      return `✅ *Payment Successful!*
-
-💸 Sent: ${amount} USDC
-👤 To: ${recipient}
-📅 Time: ${new Date().toLocaleString()}
-
-The payment has been completed successfully!`;
-    } catch (error) {
-      return error.response.data.error;
-    }
+    return await this.backendService.sendPayment(whatsappNumber, recipient, parts[1]);
   }
 
+  // *****************************************************
   async handleBuy(text, userId) {
     const parts = text.split(' ');
-    if (parts.length < 2) {
+    if  (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
       return `❌ *Invalid Buy Command*
 
 Usage: /buy <amount>
@@ -298,29 +285,13 @@ Example: /buy 100
 
 Please provide the amount of USDCyou want to buy.`;
     }
-    
-    const amount = Number.parseInt(parts[1], 10);
-    
-    if (Number.isNaN(amount) || amount <= 0) {
-      return `❌ *Invalid Amount*
-
-Please provide a valid positive number for the purchase amount.`;
-    }
-    
-    try {
-      const response = await this.backendService.buyAssets(userId, amount);
-      console.log('handleBuy response', response);
-      return response.externalUrl;
-    } catch (error) {
-      return `❌ *Purchase Failed*
-
-Error: ${error.message}`;
-    }
+    return await this.backendService.buyAssets(userId, parts[1]);
   }
 
+  // *****************************************************
   async handleSell(text, userId) {
     const parts = text.split(' ');
-    if (parts.length < 2) {
+    if (parts.length !== 2 || Number.isNaN(Number(parts[1])))  {
       return `❌ *Invalid Sell Command*
 
 Usage: /sell <amount>
@@ -328,46 +299,10 @@ Example: /sell 100
 
 Please provide the amount you want to sell.`;
     }
-    
-    const amount = Number.parseInt(parts[1], 10);
-    
-    if (Number.isNaN(amount) || amount <= 0) {
-      return `❌ *Invalid Amount*
-
-Please provide a valid positive number for the sell amount.`;
-    }
-    
-    const userData = await this.backendService.getUserData(whatsappNumber);
-    console.log('userData', userData);
-    if (userData.assets < amount) {
-      return `❌ *Insufficient Balance*
-
-Your balance: ${userData.assets} USDC
-Sell amount: ${amount} USDC
-
-You don't have enough USDC to sell.`;
-    }
-    
-
-
-    try {
-      this.backendService.removeFunds(userId, amount, 'sell');
-      const newBalance = this.backendService.getBalance(userId);
-      
-      return `✅ *Sale Successful!*
-
-💸 Sold: ${amount} USDC
-💰 New Balance: ${newBalance} USDC
-📅 Time: ${new Date().toLocaleString()}
-
-Your USDC has been sold successfully!`;
-    } catch (error) {
-      return `❌ *Sale Failed*
-
-Error: ${error.message}`;
-    }
+    return await this.backendService.sellAssets(userId, parts[1]);
   }
 
+  // *****************************************************
   async handleDeposit(text, userId) {
     const parts = text.split(' ');
     if (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
@@ -378,20 +313,10 @@ Example: /deposit 100
 
 Please provide the amount you want to deposit to the vault.`;
     }
-    try {
-      const amount = parts[1];
-      const response = await this.backendService.deposit(userId, amount, '')
-      if (response.externalUrl) {
-        return response.externalUrl;
-      }
-      return response.message;
-    } catch (error) {
-      return `❌ *Deposit Failed*
-
-Error: ${error.message}`;
-    }
+    return await this.backendService.deposit(userId, parts[1]);
   }
 
+  // *****************************************************
   async handleWithdraw(text, userId) {
     const parts = text.split(' ');
     if (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
@@ -401,24 +326,8 @@ Usage: /withdraw <amount>
 Example: /withdraw 100
 
 Please provide the amount you want to withdraw from the vault.`;
-    }
-   
-    try {
-      this.backendService.addFunds(userId, amount, 'vault_withdraw');
-      const newBalance = this.backendService.getBalance(userId);
-      
-      return `✅ *Vault Withdrawal Successful!*
-
-🏦 Withdrawn: ${amount} USDC
-💰 New Balance: ${newBalance} USDC
-📅 Time: ${new Date().toLocaleString()}
-
-Your USDC has been withdrawn from the vault!`;
-    } catch (error) {
-      return `❌ *Withdrawal Failed*
-
-Error: ${error.message}`;
-    }
+    }   
+    return await this.backendService.withdraw(userId, parts[1]);
   }
 
   async getRiskProfileMessage(text, userId) {
@@ -435,21 +344,11 @@ Usage: /riskprofile <profile>
 
 Please provide the risk profile you want to set.`;
     }
-    try {
-      let profile = '';
-      if (parts.length === 2) {
-        profile = parts[1];
-      }
-      const response = await this.backendService.riskProfile(userId, profile)
-      if (response.externalUrl) {
-        return response.externalUrl;
-      }
-      return response.message;
-    } catch (error) {
-      return `❌ *Authorization Profile setting failed*
-
-Error: ${error.message}`;
+    let profile = '';
+    if (parts.length === 2) {
+      profile = parts[1];
     }
+    return await this.backendService.riskProfile(userId, profile);
   }
 
   async getAuthProfileMessage(text, userId) {
@@ -472,21 +371,11 @@ Examples:
 
 Please provide the authorization profile you want to set.`;
     }
-    try {
-      let profile = '';
-      if (parts.length === 2) {
-        profile = parts[1];
-      }
-      const response = await this.backendService.authProfile(userId, profile)
-      if (response.externalUrl) {
-        return response.externalUrl;
-      }
-      return response.message;
-    } catch (error) {
-      return `❌ *Authorization Profile setting failed*
-
-Error: ${error.message}`;
+    let profile = '';
+    if (parts.length === 2) {
+      profile = parts[1];
     }
+    return await this.backendService.authProfile(userId, profile);
   }
 
   // Parse vCard message and extract fields
