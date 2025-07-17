@@ -76,7 +76,7 @@ router.post('/withdraw', async (req: Request, res: Response) => {
 // Deposit to vault
 router.post('/deposit', async (req: Request, res: Response) => {
   try {
-    const { whatsappNumber, amount, signature } = req.body
+    const { whatsappNumber, amount } = req.body
 
     const userData = await ContractService.getUserOnChainData(whatsappNumber);
     if (Number.isNaN(amount) || amount <= 0) {
@@ -94,7 +94,7 @@ Deposit amount: ${amount} USDC
 You don't have enough USDC for this deposit.`});
     }
 
-    if (Number(userData.authProfile) < 1 && !signature ) {
+    if (Number(userData.authProfile) < 1 ) {
       return res.status(200).json({ externalUrl: `To *authorize the payment*, tap in the link below
 
 ${process.env.FRONTEND_URL}/actions/deposit?whatsappNumber=${userData.userId}&amount=${amount}
@@ -103,8 +103,8 @@ If you want to avoid this step, you can change your auth profile to *Low* or *Me
 `});
     }
     
-    const result = await ContractService.deposit(whatsappNumber, amount, signature);
-    console.log(result);
+    const result = await ContractService.deposit(whatsappNumber, amount);
+
     let message = '';
     if (result.success) {
        message = `✅ *Vault Deposit of ${amount} USDC Successful!*
@@ -117,10 +117,10 @@ If you want to avoid this step, you can change your auth profile to *Low* or *Me
       
 Try again later.`;
     }
-    res.status(200).json({...result, message: message});
+    return res.status(200).json({...result, message: message});
   } catch (error) {
     console.error('Vault deposit error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

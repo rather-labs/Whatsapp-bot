@@ -7,21 +7,23 @@ import { useTransaction } from '../../context/TransactionContext';
 import SignTransaction from '../../components/SignTransaction';
 import TokenVaultWithRelayerJson from '../../utils/TokenVaultWithRelayer.json' assert { type: "json" };
 import { riskProfiles } from '@/app/utils/dataStructures';
+import { erc20Abi } from 'viem';
 
-type ChangeAuthData = {
+type DepositData = {
   whatsappNumber: string | null;
-  authProfile: string | null;
+  amount: string | null;
 };
 
 export default function Home() {
 
   const vaultAddress = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS as `0x${string}`
+  const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`
 
   const { address, isConnected } = useAccount();
   const { setCalls, setLabel, receipts } = useTransaction();
-  const [changeAuthData, setChangeAuthData] = useState<ChangeAuthData>({
+  const [depositData, setDepositData] = useState<DepositData>({
     whatsappNumber: null,
-    authProfile: null
+    amount: null
   });
 
   const client = usePublicClient();
@@ -29,9 +31,9 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      setChangeAuthData({
+      setDepositData({
         whatsappNumber: params.get("whatsappNumber"),
-        authProfile: params.get("profile")
+        amount: params.get("amount")
       });
     }
   }, []);
@@ -41,23 +43,28 @@ export default function Home() {
       // Only set calls if both addresses are valid and not empty
       if (vaultAddress && vaultAddress !== '0x' 
           && client 
-          && changeAuthData.whatsappNumber
-          && changeAuthData.authProfile
+          && depositData.whatsappNumber
+          && depositData.amount
         ) {
         const nonce = await client.readContract({
           address: vaultAddress,
           abi: TokenVaultWithRelayerJson.abi,
           functionName: 'getNonce',
-          args: [changeAuthData.whatsappNumber],
+          args: [depositData.whatsappNumber],
         });
-        setLabel(`Change risk profile to ${changeAuthData.authProfile}`);
+        const decimals = await client.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'decimals',
+        });
+        setLabel(`Deposit ${depositData.amount} USDC`);
         setCalls([
           {
             address: vaultAddress as `0x${string}`, // 'to:' fails
             abi: TokenVaultWithRelayerJson.abi,
-            functionName: 'ChangeRiskProfile',
-            args: [changeAuthData.whatsappNumber, 
-                   BigInt(riskProfiles.indexOf(changeAuthData.authProfile.toLowerCase())), 
+            functionName: 'deposit',
+            args: [depositData.whatsappNumber, 
+                   BigInt(Number(depositData.amount)*10**Number(decimals)), 
                    nonce
                   ],
             value: BigInt(0)
@@ -69,7 +76,7 @@ export default function Home() {
       }
     }
   getData();
-  }, [vaultAddress, setCalls, changeAuthData, setLabel, client]);
+  }, [vaultAddress, setCalls, depositData, setLabel, client, tokenAddress]);
 
 
   useEffect(() => {
@@ -92,7 +99,7 @@ export default function Home() {
         {receipts && receipts[0].status === 'success' && (
           <div className="flex justify-center">
             <div className="text-[#276749] bg-[#F0FFF4] rounded-md px-4 py-2 text-lg font-bold self-center">
-              Risk profile changed successfully. <br/>
+              Deposit successful. <br/>
               You may now close this window.
             </div>
           </div>
@@ -100,7 +107,7 @@ export default function Home() {
         {receipts && receipts[0].status === 'reverted' && (
           <div className="flex justify-center">
             <div className="text-[#991B1B] bg-[#FEE2E2] rounded-md px-4 py-2 text-lg font-bold self-center">
-              Risk profile change failed. <br/>
+              Deposit failed. <br/>
               Transaction hash: {receipts[0].transactionHash}
             </div>
           </div>

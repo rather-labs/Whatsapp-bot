@@ -18,14 +18,14 @@ interface RegistrationResult {
   userId: string;
   walletAddress: string;
   transactionHash: string;
-  blockNumber: bigint;
+  blockNumber: string;
 }
 interface TransactionResult {
     success: boolean;
     userId: string;
     functionName: string;
     transactionHash: string;
-    blockNumber: bigint;
+    blockNumber: string;
   }
 
 interface UserOnChainData {
@@ -157,8 +157,8 @@ class ContractService {
         success: true,
         userId: userId.toString(),
         walletAddress,
-        transactionHash: receipt.transactionHash,
-        blockNumber: receipt.blockNumber
+        transactionHash: receipt.transactionHash.toString(),
+        blockNumber: Number(receipt.blockNumber).toString()
       };
     } catch (error) {
       console.error('❌ On-chain registration failed:', error);
@@ -207,20 +207,17 @@ class ContractService {
    * Send deposit
    * @param whatsappNumber - User's WhatsApp number
    * @param amount - The amount to deposit
-   * @param signature - Signed authorization
-   * @param nonce - User's vault nonce
    * @returns Transaction result
    */
-    async deposit(whatsappNumber: string, amount: string, signature: string,  nonce = -1n): Promise<TransactionResult> {
-        console.log('deposit', whatsappNumber, amount, signature, nonce);
+    async deposit(whatsappNumber: string, amount: string): Promise<TransactionResult> {
+        console.log('deposit', whatsappNumber, amount);
         const userId = this.generateUserId(whatsappNumber);
 
-        let nonceToUse = nonce;
-        if (nonceToUse === -1n) {
-          nonceToUse = await this.vaultContract.read.getNonce([userId]);
-        }
+        const nonce = await this.vaultContract.read.getNonce([userId]);
 
-        const hash = await this.relayerContract.write.deposit([userId, amount, nonceToUse, signature]);
+        const decimals = Number(await this.usdcContract.read.decimals());
+        const amountToDeposit = Number(amount)*10**decimals;
+        const hash = await this.relayerContract.write.deposit([userId, amountToDeposit, nonce]);
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
         console.log(`✅ Deposit registered on-chain: User ID ${userId}, amount ${amount}`);
         console.log(`Transaction hash: ${receipt.transactionHash}`);
@@ -229,8 +226,8 @@ class ContractService {
           success: receipt.status === 'success',
           functionName: 'deposit',
           userId: userId.toString(),
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber
+          transactionHash: receipt.transactionHash.toString(),
+          blockNumber: Number(receipt.blockNumber).toString()
         };
     }
 
@@ -262,8 +259,8 @@ class ContractService {
           success: true,
           functionName: recipientIsAddress ? 'transfer' : 'transferWithinVault',
           userId: userId.toString(),
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber
+          transactionHash: receipt.transactionHash.toString(),
+          blockNumber: Number(receipt.blockNumber).toString()
         };
 
    }
@@ -300,8 +297,8 @@ class ContractService {
           success: receipt.status === 'success',
           functionName: 'setAuthProfile',
           userId: userId.toString(),
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber
+          transactionHash: receipt.transactionHash.toString(),
+          blockNumber: Number(receipt.blockNumber).toString()
         };
     }
 
@@ -338,8 +335,8 @@ class ContractService {
           success: receipt.status === 'success',
           functionName: 'setRiskProfile',
           userId: userId.toString(),
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber
+          transactionHash: receipt.transactionHash.toString(),
+          blockNumber: Number(receipt.blockNumber).toString()
         };
     }
 }
