@@ -7,7 +7,6 @@ import {
   base, 
   localhost
 } from 'wagmi/chains'; 
-import { SignatureProvider } from './context/SignatureContext';
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -56,11 +55,9 @@ export function Providers(props: { children: ReactNode }) {
             paymaster: process.env.NEXT_PUBLIC_PAYMASTER_ENDPOINT, 
           }}
         >
-          <SignatureProvider>
-            <TransactionProvider>
-              {props.children}
-            </TransactionProvider>
-          </SignatureProvider>
+          <TransactionProvider>
+            {props.children}
+          </TransactionProvider>
         </OnchainKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
