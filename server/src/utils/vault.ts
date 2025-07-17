@@ -1,5 +1,6 @@
 export const authProfiles = ['high', 'medium', 'low'];
 
+export const riskProfiles = ['low', 'moderate', 'high'];
 /**
  * Checks if a string is a valid Ethereum (EVM) address.
  * Accepts addresses with or without '0x' prefix, must be 40 hex chars.

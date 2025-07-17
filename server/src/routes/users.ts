@@ -8,7 +8,7 @@ import ContractService from '../services/contractService';
 import { getUserSessionStatus } from '../services/sessionService';
 import { encryptUserPin } from '../utils/crypto';
 import e from 'express';
-import { authProfiles } from '../utils/vault';
+import { authProfiles, riskProfiles } from '../utils/vault';
 
 interface UserRow {
   whatsapp_number: string;
@@ -243,7 +243,7 @@ router.post('/authprofile', async (req: Request, res: Response) => {
 
 ${process.env.FRONTEND_URL}/actions/changeAuth?whatsappNumber=${userId}&profile=${profile}
         
-If you want to avoid this step, you can change your auth profile to *Low*.
+If you want to avoid this step, you can change your authorization profile to *Low*.
 `});
     }
     
@@ -251,10 +251,52 @@ If you want to avoid this step, you can change your auth profile to *Low*.
       whatsappNumber, 
       authProfiles.indexOf(profile.toLowerCase()).toString(), 
     );
-    return res.status(200).json({message: response.success ? `✅ Authorization profile set successfully to ${profile}` : '❌ Authorization profile setting failed'});
+    return res.status(200).json({message: response.success 
+      ? `✅ Authorization profile set successfully to *${profile}*` 
+      : '❌ Authorization profile setting failed'
+    });
 
   } catch (error) {
     console.error('❌ Auth profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+router.post('/riskprofile', async (req: Request, res: Response) => {
+  try {
+    const { whatsappNumber, profile } = req.body;
+    
+    const currentProfile = await ContractService.getRiskProfile(whatsappNumber);
+
+
+    const userId = ContractService.generateUserId(whatsappNumber);
+
+    if (profile === '') {
+      return res.status(200).json({message: `Your current risk profile is: *${riskProfiles[currentProfile]}*`});
+    }
+    const currentAuthProfile = await ContractService.getAuthProfile(whatsappNumber);
+
+    if (Number(currentAuthProfile) < 2 ) {
+      return res.status(200).json({ externalUrl: `To *Change risk profile*, tap in the link below
+
+${process.env.FRONTEND_URL}/actions/changeRisk?whatsappNumber=${userId}&profile=${profile}
+        
+If you want to avoid this step, you can change your authorization profile to *Low*.
+`});
+    }
+    
+    const response = await ContractService.setRiskProfile(
+      whatsappNumber, 
+      riskProfiles.indexOf(profile.toLowerCase()).toString(), 
+    );
+    return res.status(200).json({message: response.success 
+      ? `✅ Risk profile set successfully to *${profile}*` 
+      : '❌ Risk profile setting failed'
+    });
+
+  } catch (error) {
+    console.error('❌ Risk profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

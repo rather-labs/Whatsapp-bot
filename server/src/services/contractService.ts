@@ -304,6 +304,44 @@ class ContractService {
           blockNumber: receipt.blockNumber
         };
     }
+
+
+  /**
+   * Get user's risk profile
+   * @param whatsappNumber - User's WhatsApp number
+   * @returns Transaction result
+   */
+  async getRiskProfile(whatsappNumber: string): Promise<string>   {
+    const userId = this.generateUserId(whatsappNumber);
+    const profile = await this.relayerContract.read.getUserRiskProfile([userId]);
+    return profile;
+  }
+     
+  /**
+   * Set user's risk profile
+   * @param whatsappNumber - User's WhatsApp number
+   * @param profile - The profile to set 
+   * @returns Transaction result
+   */
+    async setRiskProfile(whatsappNumber: string, profile: string): Promise<TransactionResult> {
+        console.log('setRiskProfile', whatsappNumber, profile);
+        const userId = this.generateUserId(whatsappNumber);
+
+        const nonce = await this.vaultContract.read.getNonce([userId]);
+
+        const hash = await this.relayerContract.write.ChangeRiskProfile([userId, Number(profile), nonce]);
+        const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+        console.log(`✅ Risk profile registered on-chain: User ID ${userId}, profile ${profile}`);
+        console.log(`Transaction hash: ${receipt.transactionHash}`);
+  
+        return {
+          success: receipt.status === 'success',
+          functionName: 'setRiskProfile',
+          userId: userId.toString(),
+          transactionHash: receipt.transactionHash,
+          blockNumber: receipt.blockNumber
+        };
+    }
 }
 
 export default new ContractService(); 
