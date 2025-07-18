@@ -71,16 +71,16 @@ const VAULT_ABI = TokenVaultWithRelayer.abi;
 
 // Initialize public client
 let publicClient: PublicClient | undefined;
-try {
-  if (networkConfig) {
+if (networkConfig) {
+  try {
     publicClient = createPublicClient({
       chain: networkConfig.chain,
       transport: http(networkConfig.rpc)
-    });
+    }) as unknown as PublicClient;
     console.log(`✅ Connected to ${networkConfig.name}`);
+  } catch (error) {
+    console.error('❌ Failed to connect to blockchain:', error instanceof Error ? error.message : 'Unknown error');
   }
-} catch (error) {
-  console.error('❌ Failed to connect to blockchain:', error instanceof Error ? error.message : 'Unknown error');
 }
 
 export {
