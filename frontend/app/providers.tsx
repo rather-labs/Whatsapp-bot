@@ -50,7 +50,7 @@ export function Providers(props: { children: ReactNode }) {
               name: 'Chat-ching Bot ',
               logo: 'https://onchainkit.xyz/favicon/48x48.png?v4-19-24',
               mode: 'auto',
-              theme: 'base',
+              theme: 'default', // 'base', 'cyberpunk', 'default', 'hacker'
             }, 
             paymaster: process.env.NEXT_PUBLIC_PAYMASTER_ENDPOINT, 
           }}

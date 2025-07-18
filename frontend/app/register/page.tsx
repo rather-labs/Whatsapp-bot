@@ -61,13 +61,7 @@ export default function Home() {
 
   const handleSubmit = async () => {
     if (isConnected && address && whatsappNumber && pin && success ) {
-      console.log("Registering user with:", {
-        whatsapp_number: whatsappNumber,
-        username: username || whatsappNumber,
-        pin: pin,
-        backend_url: process.env.NEXT_PUBLIC_BACKEND_URL
-      });
-      
+     
       try {
         const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`, {
           whatsapp_number: whatsappNumber,
@@ -78,11 +72,9 @@ export default function Home() {
         
         if (response.status === 200) {
           const data = response.data;
-          console.log("Registration successful:", data);
           setIsSubmitted(true);
         } else {
           const errorData = response.data;
-          console.error("Registration failed:", response.status, errorData);
           if (errorData.error === "User already exists") {
             setIsSubmitted(true);
           } else {
@@ -90,18 +82,9 @@ export default function Home() {
           }
         }
       } catch (err) {
-        console.error("Failed to register:", err);
         alert(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     } else {
-      console.log("Missing required fields:", {
-        whatsappNumber: !!whatsappNumber,
-        username: !!username,
-        pin: !!pin,
-        success: !!success,
-        isConnected: !!isConnected,
-        address: !!address
-      });
       alert("Please ensure you are connected to your wallet, have entered a valid PIN, and have signed the approval transaction. If you have already signed the transaction, please wait for it to be confirmed.");
     }
   };

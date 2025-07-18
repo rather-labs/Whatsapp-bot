@@ -29,7 +29,6 @@ export default function SignTransaction() {
   };
 
   const handleStatusChange = (newStatus: LifecycleStatus) => {
-    console.log('newStatus', newStatus);
     setDisabled(newStatus.statusName === 'success');
     setSuccess(newStatus.statusName === 'success');
   };
@@ -43,8 +42,6 @@ export default function SignTransaction() {
       </div>
     );
   }
-
-  console.log('calls', calls);
 
   return (
       <Transaction
