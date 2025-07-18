@@ -120,10 +120,10 @@ Type /help to see available commands.`
       return false;
     }
     
-    // Check if PIN request has expired (7 seconds)
+    // Check if PIN request has expired (15 seconds)
     const now = new Date();
     const timeDiff = now - pendingResponse.timestamp;
-    if (timeDiff > 7000) {
+    if (timeDiff > 15000) {
       this.pendingPinResponses.delete(whatsappNumber);
       return false;
     }
