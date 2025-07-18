@@ -86,7 +86,7 @@ Try again later.`;
     return res.status(200).json({...result, message: message});
 
   } catch (error) {
-    res.status(500).json({ message: `Internal server error ${error.message}` });
+    res.status(500).json({ message: `${error.message}` });
   }
 });
 
@@ -135,7 +135,7 @@ Try again later.`;
     }
     return res.status(200).json({...result, message: message});
   } catch (error) {
-    return res.status(500).json({ message: `Internal server error ${error.message}` });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -185,7 +185,7 @@ Try again later.`;
     }
     return res.status(200).json({...result, message: message});
   } catch (error) {
-    return res.status(500).json({ message: `Internal server error ${error.message}` });
+    return res.status(500).json({ message: error.message });
   }
 });
 

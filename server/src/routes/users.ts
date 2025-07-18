@@ -34,7 +34,7 @@ router.get('/check/:whatsapp_number', async (req: Request, res: Response) => {
       message: 'User not registered on blockchain'
     });
   } catch (error) {
-    return res.status(500).json({ message: `Internal server error ${error.message}` });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -71,7 +71,7 @@ router.get('/data/:whatsapp_number', async (req: Request, res: Response) => {
     }
     return res.status(200).json(user);
   } catch (error) {
-    return res.status(500).json({ message: `Internal server error ${error.message}` });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -124,7 +124,7 @@ router.post('/register', async (req: Request, res: Response) => {
          vaultBalance: 0,
     });
   } catch (error) {
-    res.status(500).json({ message: `Internal server error ${error.message}` });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -138,7 +138,7 @@ router.get('/session/status/:whatsapp_number', async (req: Request, res: Respons
     return res.json({sessionStatus: await getUserSessionStatus(whatsapp_number)});
 
   } catch (error) {
-    res.status(500).json({ message: `Internal server error ${error.message}` });
+    res.status(500).json({ message: error.message });
   }
 });
 

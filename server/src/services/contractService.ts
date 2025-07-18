@@ -12,7 +12,6 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { publicClient, networkConfig, VAULT_ABI } from '../config/blockchain';
 import { isValidAddress, isValidNumber } from '../utils/vault';
-import { getRecipientNumber } from '../config/database';
 
 interface RegistrationResult {
   success: boolean;
@@ -122,14 +121,9 @@ class ContractService {
    * @returns Whether user is registered
    */
   async isUserRegisteredOnChain(whatsappNumber: string): Promise<boolean> {
-    try {
-      const userId = this.generateUserId(whatsappNumber);
-      const walletAddress = await this.vaultContract.read.getUserWallet([userId]);
-      return walletAddress !== '0x0000000000000000000000000000000000000000';
-    } catch (error) {
-      console.error('Error checking on-chain registration:', error);
-      return false;
-    }
+    const userId = this.generateUserId(whatsappNumber);
+    const walletAddress = await this.vaultContract.read.getUserWallet([userId]);
+    return walletAddress !== '0x0000000000000000000000000000000000000000';
   }
 
   /**
@@ -139,40 +133,31 @@ class ContractService {
    * @returns Registration result
    */
   async registerUserOnChain(whatsappNumber: string, walletAddress: string): Promise<RegistrationResult> {
-    try {
-      if (!this.relayerContract) {
-        throw new Error('Relayer wallet not configured');
-      }
-
-      if (!getAddress(walletAddress)) {
-        throw new Error('Invalid wallet address');
-      }
-      
-      // Check if user is already registered
-      if (await this.isUserRegisteredOnChain(whatsappNumber)) {
-        throw new Error('User already registered on-chain');
-      }
-
-      // Generate user ID
-      const userId = this.generateUserId(whatsappNumber);
-      // Call RegisterUser function
-      const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress)]);
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-
-      console.log(`✅ User registered on-chain: User ID ${userId}, Wallet ${walletAddress}`);
-      console.log(`Transaction hash: ${receipt.transactionHash}`);
-
-      return {
-        success: true,
-        userId: userId.toString(),
-        walletAddress,
-        transactionHash: receipt.transactionHash.toString(),
-        blockNumber: Number(receipt.blockNumber).toString()
-      };
-    } catch (error) {
-      console.error('❌ On-chain registration failed:', error);
-      throw error;
+    if (!this.relayerContract) {
+      throw new Error('❌ Relayer wallet not configured');
     }
+    if (!getAddress(walletAddress)) {
+      throw new Error('❌ Invalid wallet address');
+    }
+    
+    // Check if user is already registered
+    if (await this.isUserRegisteredOnChain(whatsappNumber)) {
+      throw new Error('❌ User already registered on-chain');
+    }
+    // Generate user ID
+    const userId = this.generateUserId(whatsappNumber);
+    // Call RegisterUser function
+    const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress)]);
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    console.log(`✅ User registered on-chain: User ID ${userId}, Wallet ${walletAddress}`);
+    console.log(`Transaction hash: ${receipt.transactionHash}`);
+    return {
+      success: true,
+      userId: userId.toString(),
+      walletAddress,
+      transactionHash: receipt.transactionHash.toString(),
+      blockNumber: Number(receipt.blockNumber).toString()
+    };
   }
 
   /**
@@ -181,35 +166,31 @@ class ContractService {
    * @returns User's on-chain data
    */
   async getUserOnChainData(whatsappNumber: string): Promise<UserOnChainData> {
-    try {
-      const userId = this.generateUserId(whatsappNumber);
+    const userId = this.generateUserId(whatsappNumber);
 
-      const [walletAddress, riskProfile, authProfile, assets] = await Promise.all([
-        this.vaultContract.read.getUserWallet([userId]),
-        this.vaultContract.read.getUserRiskProfile([userId]),
-        this.vaultContract.read.getUserAuthProfile([userId]),
-        this.vaultContract.read.getUserAssets([userId])
-      ]);
-      if (walletAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error('User not registered on-chain');
-      }
-
-      const decimals = Number(await this.usdcContract.read.decimals());
-      const walletBalance = Number(await this.usdcContract.read.balanceOf([walletAddress]))/10**decimals;
-      const vaultBalance = Number(assets)/10**decimals;
-
-      return {
-        userId: userId.toString(),
-        walletAddress,
-        riskProfile: riskProfile.toString(),
-        authProfile: authProfile.toString(),
-        vaultBalance: vaultBalance.toString(),
-        walletBalance: walletBalance.toString(),
-      };
-    } catch (error) {
-      console.error('Error getting on-chain user data:', error);
-      throw error;
+    const walletAddress = await this.vaultContract.read.getUserWallet([userId]);
+      
+    if (walletAddress === '0x0000000000000000000000000000000000000000') {
+      throw new Error('❌ User not registered on-chain');
     }
+    const [riskProfile, authProfile, assets] = await Promise.all([
+      this.vaultContract.read.getUserRiskProfile([userId]),
+      this.vaultContract.read.getUserAuthProfile([userId]),
+      this.vaultContract.read.getUserAssets([userId])
+    ]);
+
+    const decimals = Number(await this.usdcContract.read.decimals());
+    const walletBalance = Number(await this.usdcContract.read.balanceOf([walletAddress]))/10**decimals;
+    const vaultBalance = Number(assets)/10**decimals;
+
+    return {
+      userId: userId.toString(),
+      walletAddress,
+      riskProfile: riskProfile.toString(),
+      authProfile: authProfile.toString(),
+      vaultBalance: vaultBalance.toString(),
+      walletBalance: walletBalance.toString(),
+    };
   }
 
   /**

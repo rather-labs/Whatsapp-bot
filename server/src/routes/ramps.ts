@@ -12,7 +12,7 @@ router.post('/onramp', async (req: Request, res: Response) => {
 
 ${process.env.FRONTEND_URL}/actions/onramp`});
   } catch (error) {
-    res.status(500).json({ message: `Internal server error ${error.message}` });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -24,7 +24,7 @@ router.post('/offramp', async (req: Request, res: Response) => {
 
 ${process.env.FRONTEND_URL}/actions/offramp`});
   } catch (error) {
-    res.status(500).json({ message: `Internal server error ${error.message}` });
+    res.status(500).json({ message: error.message });
   }
 });
 
