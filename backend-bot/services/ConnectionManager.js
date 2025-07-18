@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 
 class ConnectionManager {
@@ -81,6 +81,22 @@ class ConnectionManager {
           // Logout unauthorized user
           await this.client.logout();
           return;
+        }
+        
+        // Set profile photo
+        try {
+          const path = require('node:path');
+          const profilePhotoPath = path.join(__dirname, '..', 'public', 'ChatChing.png');
+          
+          // Use MessageMedia.fromFilePath for proper media handling
+          const profilePhoto = MessageMedia.fromFilePath(profilePhotoPath);
+          await this.client.setProfilePicture(profilePhoto);
+        } catch (photoError) {
+          console.error('Error setting profile photo:', photoError);
+          // Log more details for debugging
+          if (photoError.message.includes('file not found') || photoError.message.includes('ENOENT')) {
+            console.log('⚠️ Profile photo file not found. Please ensure ChatChing.png exists in the public/ directory');
+          }
         }
         
         this.botState.isReady = true;
