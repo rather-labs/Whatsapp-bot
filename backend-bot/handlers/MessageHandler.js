@@ -217,21 +217,8 @@ This bot is built with Node.js and Express, designed to provide a seamless Whats
   // *****************************************************
   async handleRegisterUser(whatsappNumber, contact) {
     // Try to register user with backend server
-    const user = await this.backendService.getUserData(whatsappNumber);
-
-    if (user) {
-      return `Your account is already registered!
-
-💰 On Vault: ${user.vaultBalance} USDC
-💰 On Wallet: ${user.walletBalance} USDC
-📅 Created on: ${user.createdAt.split('T')[0]}`;
-    }
-    
-    return `To register your account, tap in the link below
-
-${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=${contact.pushname}
-`;
-}
+    return await this.backendService.registerUser(whatsappNumber, contact.pushname);
+  }
 
   // *****************************************************
   async handleBalance(whatsappNumber) {
@@ -239,7 +226,7 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsappNumber}&username=$
     if (user.error) { return user.error;}
     return `💰 *User Balance*
 
-💎 On Vault: ${user.vaultBalance} USDC
+💎 On Vault: ${user.vaultBalance} USDC ${user.vaultBalance > 0 ? '(Generating yields... 💰💰💰)' : '(Deposit to vault generate yields 💰💰💰)'}
 💎 On Wallet: ${user.walletBalance} USDC
 
 Use /pay, /buy, /sell, /deposit, or /withdraw to manage your USDC!`;

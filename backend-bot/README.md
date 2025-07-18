@@ -210,6 +210,11 @@ The bot has been refactored to use **centralized session management**:
 
 MIT License - see LICENSE file for details.
 
+# TODOs
+
+* By default activate temporal messages in new chats.
+
+
 ## Support
 
 For issues and questions, please check the GitHub repository or create an issue. 

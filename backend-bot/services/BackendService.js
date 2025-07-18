@@ -39,7 +39,7 @@ class BackendService {
   }
 
   // Register a new user with the backend server
-  async registerUser(whatsappNumber, username, pin) {
+  async registerUser(whatsappNumber, username, pin=null) {
     try {
       const response = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/register`, {
         whatsapp_number: whatsappNumber,

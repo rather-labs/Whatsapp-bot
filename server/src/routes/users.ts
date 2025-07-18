@@ -80,9 +80,24 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { whatsapp_number, username, pin, wallet_address } = req.body;
     
-    if (!whatsapp_number || !pin) {
-      return res.status(400).json({ message: 'WhatsApp number and PIN are required' });
+    if (!whatsapp_number) {
+      return res.status(400).json({ message: 'WhatsApp number is required' });
     }
+
+    const isRegisteredOnChain = await ContractService.isUserRegisteredOnChain(whatsapp_number);
+    if (isRegisteredOnChain) {
+      const user = await ContractService.getUserOnChainData(whatsapp_number);
+      return res.status(409).json({ message: `Your account is already registered!
+
+💰 On Vault: ${user.vaultBalance} USDC ${Number(user.vaultBalance) > 0 ? '(Generating yields... 💰💰💰)' : '(Deposit to vault generate yields 💰💰💰)'}
+💰 On Wallet: ${user.walletBalance} USDC` });
+    }
+
+    if (!pin) {
+      return res.status(200).json({ message: `To register your account, tap in the link below
+
+${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsapp_number}&username=${username}`});
+      }
 
     if (!wallet_address) {
       return res.status(400).json({ message: 'Wallet address is required for on-chain registration' });
@@ -92,12 +107,6 @@ router.post('/register', async (req: Request, res: Response) => {
     const pinNumber = Number.parseInt(pin, 10);
     if (Number.isNaN(pinNumber) || pinNumber < 1000 || pinNumber > 999999) {
       return res.status(400).json({ message: 'PIN must be a 4-6 digit number' });
-    }
-
-
-    const isRegisteredOnChain = await ContractService.isUserRegisteredOnChain(whatsapp_number);
-    if (isRegisteredOnChain) {
-      return res.status(409).json({ message: 'User already exists' });
     }
 
     console.log("🔄 Starting registration...");
