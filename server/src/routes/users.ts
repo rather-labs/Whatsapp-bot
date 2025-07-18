@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Response, Request } from 'express';
 import jwt from 'jsonwebtoken';
-import db from '../config/database';
+import supabase from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import ContractService from '../services/contractService';
@@ -50,26 +50,26 @@ router.get('/data/:whatsapp_number', async (req: Request, res: Response) => {
     const user = await ContractService.getUserOnChainData(whatsapp_number);
     // Get user creation time from database
     let createdAt: string | undefined = undefined;
-    await new Promise<void>((resolve) => {
-      db.get(
-        'SELECT created_at FROM users WHERE whatsapp_number = ?',
-        [whatsapp_number],
-        (err: Error | null, row: { created_at?: string } | undefined) => {
-          if (err) {
-            console.error('❌ Error fetching user creation time:', err);
-            return resolve(); // Don't block response on error
-          }
-          if (row?.created_at) {
-            createdAt = row.created_at;
-          }
-          resolve();
-        }
-      );
-    });
-    if (createdAt) {
-      (user as any).createdAt = createdAt;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('created_at')
+        .eq('whatsapp_number', whatsapp_number)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ Error fetching user creation time:', error);
+      } else if (data?.created_at) {
+        createdAt = data.created_at;
+      }
+    } catch (err) {
+      console.error('❌ Error fetching user creation time:', err);
+      // Don't block response on error
     }
-    return res.status(200).json(user);
+    
+    const userResponse = createdAt ? { ...user, createdAt } : user;
+    return res.status(200).json(userResponse);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -174,16 +174,15 @@ router.post('/session/update', async (req: Request, res: Response) => {
 
     const utcTimestamp = new Date().toISOString();
     // Update the user's last activity time in the database using this timestamp
-    await new Promise<void>((resolve, reject) => {
-      db.run(
-        'UPDATE users SET last_activity = ? WHERE whatsapp_number = ?',
-        [utcTimestamp, whatsapp_number],
-        (err: unknown) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({ last_activity: utcTimestamp })
+      .eq('whatsapp_number', whatsapp_number);
+
+    if (error) {
+      throw error;
+    }
+
     return res.json({success: true});
   } catch (error) {
     res.status(500).json({ message: error.message });

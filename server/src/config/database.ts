@@ -1,45 +1,36 @@
-import sqlite3 from 'sqlite3';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-// Database setup
-const db = new sqlite3.Database('./database.sqlite', (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('✅ Connected to SQLite database');
-    initializeDatabase();
-  }
-});
+// Supabase configuration
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Initialize database tables
-function initializeDatabase(): void {
-  const tables = [
-    `CREATE TABLE IF NOT EXISTS users (
-      whatsapp_number TEXT PRIMARY KEY,
-      username TEXT,
-      encrypted_pin TEXT NOT NULL,
-      last_activity TEXT,
-      created_at TEXT DEFAULT (datetime('now', 'utc'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS contacts (
-      id TEXT PRIMARY KEY,
-      user_whatsapp_number TEXT NOT NULL,
-      name TEXT NOT NULL,
-      contact_whatsapp_number TEXT NOT NULL,
-      contact_wallet_address TEXT,
-      FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number),
-      UNIQUE(user_whatsapp_number, contact_whatsapp_number),
-      UNIQUE(user_whatsapp_number, name)
-    )`,
-  ];
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('❌ Missing Supabase configuration. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
+}
 
-  for (const table of tables) {
-    db.run(table, (err) => {
-      if (err) {
-        console.error('Error creating table:', err.message);
-      }
-    });
+// Create Supabase client
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+// Test connection
+async function testConnection(): Promise<void> {
+  try {
+    const { data, error } = await supabase.from('users').select('count').limit(1);
+    if (error && error.code !== 'PGRST116') { // PGRST116 = relation does not exist (table not created yet)
+      console.error('❌ Error connecting to Supabase:', error.message);
+      throw error;
+    }
+    console.log('✅ Connected to Supabase database');
+  } catch (err) {
+    console.error('❌ Failed to connect to Supabase:', err);
+    throw err;
   }
 }
+
+// Initialize connection
+testConnection().catch((err) => {
+  console.error('❌ Database connection failed:', err);
+  process.exit(1);
+});
 
 /**
  * Get recipient number from contacts table
@@ -48,58 +39,58 @@ function initializeDatabase(): void {
  * @returns contact whatsapp number
  */
 export async function getContactWhatsappNumber(userNumber: string, contactName: string): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    db.get(
-      'SELECT contact_whatsapp_number FROM contacts WHERE user_whatsapp_number = ? AND name = ?',
-      [userNumber, contactName],
-      (err: any, row: any) => {
-        if (err) {
-          reject(err);
-        } else if (row?.contact_whatsapp_number) {
-          resolve(row.contact_whatsapp_number);
-        } else {
-          resolve(null);
-        }
-      }
-    );
-  });
-};
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('contact_whatsapp_number')
+      .eq('user_whatsapp_number', userNumber)
+      .eq('name', contactName)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // No rows found
+      throw error;
+    }
+
+    return data?.contact_whatsapp_number || null;
+  } catch (err) {
+    console.error('Error fetching contact WhatsApp number:', err);
+    throw err;
+  }
+}
 
 /**
- * Get recipient number from contacts table
+ * Get recipient wallet address from contacts table
  * @param userNumber - The user's WhatsApp number
  * @param contactNumber - The contact number
  * @returns contact wallet address
  */
 export async function getContactWalletAddress(userNumber: string, contactNumber: string): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    db.get(
-      'SELECT contact_wallet_address FROM contacts WHERE user_whatsapp_number = ? AND contact_whatsapp_number = ?',
-      [userNumber, contactNumber],
-      (err: any, row: any) => {
-        if (err) {
-          reject(err);
-        } else if (row?.contact_wallet_address) {
-          resolve(row.contact_wallet_address);
-        } else {
-          resolve(null);
-        }
-      }
-    );
-  });
-};
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('contact_wallet_address')
+      .eq('user_whatsapp_number', userNumber)
+      .eq('contact_whatsapp_number', contactNumber)
+      .single();
 
-// Graceful shutdown
+    if (error) {
+      if (error.code === 'PGRST116') return null; // No rows found
+      throw error;
+    }
+
+    return data?.contact_wallet_address || null;
+  } catch (err) {
+    console.error('Error fetching contact wallet address:', err);
+    throw err;
+  }
+}
+
+// Graceful shutdown - no specific cleanup needed for Supabase
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down server...');
-  db.close((err) => {
-    if (err) {
-      console.error('Error closing database:', err.message);
-    } else {
-      console.log('✅ Database connection closed');
-    }
-    process.exit(0);
-  });
+  console.log('✅ Supabase connection will be automatically closed');
+  process.exit(0);
 });
 
-export default db; 
+export default supabase; 
