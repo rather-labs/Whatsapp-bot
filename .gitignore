@@ -45,3 +45,6 @@ next-env.d.ts
 .wwebjs_cache/
 
 *.sqlite
+
+*.vercel/
+dist/
