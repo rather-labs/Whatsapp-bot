@@ -83,6 +83,7 @@ export default function Home() {
         if (isRecipientAddress(transferData.recipient)) {
           setCalls([
             {
+              // @ts-ignore - viem client type compatibility issue
               address: vaultAddress as `0x${string}`, // 'to:' fails
               abi: TokenVaultWithRelayerJson.abi,
               functionName: 'transfer',
@@ -98,6 +99,7 @@ export default function Home() {
         } else {
           setCalls([
             {
+              // @ts-ignore - viem client type compatibility issue
               address: vaultAddress as `0x${string}`, // 'to:' fails
               abi: TokenVaultWithRelayerJson.abi,
               functionName: 'transferWithinVault',

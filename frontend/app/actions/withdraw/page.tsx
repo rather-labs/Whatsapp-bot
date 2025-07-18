@@ -59,6 +59,7 @@ export default function Home() {
         setLabel(`Withdraw ${withdrawData.amount} USDC`);
         setCalls([
           {
+            // @ts-ignore - viem client type compatibility issue
             address: vaultAddress as `0x${string}`, // 'to:' fails
             abi: TokenVaultWithRelayerJson.abi,
             functionName: 'withdraw',

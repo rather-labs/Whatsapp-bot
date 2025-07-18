@@ -53,6 +53,7 @@ export default function Home() {
         setLabel(`Change risk profile to ${changeAuthData.authProfile}`);
         setCalls([
           {
+            // @ts-ignore - viem client type compatibility issue
             address: vaultAddress as `0x${string}`, // 'to:' fails
             abi: TokenVaultWithRelayerJson.abi,
             functionName: 'ChangeRiskProfile',

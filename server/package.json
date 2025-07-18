@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:blockchain": "node test-blockchain.js",
     "migrate": "node migrations/migrate.js",
-    "migrate-sessions": "node migrate-sessions.js"
+    "migrate-sessions": "node migrate-sessions.js",
+    "vercel:deploy": "vercel build --prod && vercel --prod --prebuilt"
   },
   "dependencies": {
     "@noble/ciphers": "^1.3.0",

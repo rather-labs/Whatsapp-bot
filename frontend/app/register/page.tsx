@@ -33,6 +33,7 @@ export default function Home() {
     if (tokenAddress && vaultAddress && tokenAddress !== '0x' && vaultAddress !== '0x') {
       setCalls([
         {
+          // @ts-ignore - viem client type compatibility issue
           address: tokenAddress as `0x${string}`,
           abi: erc20Abi,
           functionName: 'approve',
