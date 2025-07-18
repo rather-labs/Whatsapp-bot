@@ -17,14 +17,8 @@ function initializeDatabase(): void {
       whatsapp_number TEXT PRIMARY KEY,
       username TEXT,
       encrypted_pin TEXT NOT NULL,
-      wallet_address TEXT,
-      risk_profile INTEGER DEFAULT 1,
-      auth_profile INTEGER DEFAULT 1,
-      wallet_balance REAL DEFAULT 0,
-      vault_balance REAL DEFAULT 0,
       last_activity TEXT,
-      created_at TEXT DEFAULT (datetime('now', 'utc')),
-      updated_at TEXT DEFAULT (datetime('now', 'utc'))
+      created_at TEXT DEFAULT (datetime('now', 'utc'))
     )`,
     `CREATE TABLE IF NOT EXISTS contacts (
       id TEXT PRIMARY KEY,

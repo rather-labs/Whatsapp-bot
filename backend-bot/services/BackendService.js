@@ -25,16 +25,12 @@ class BackendService {
   async getSessionStatus(whatsappNumber) {
     try {
       const response = await axios.get(`${this.BACKEND_SERVER_URL}/api/users/session/status/${whatsappNumber}`);
-      return response.data.message;
+      return response.data.sessionStatus;
     } catch (error) {
-      if (error.response?.status === 404) {
-        return { 
-          exists: false, 
-          requiresRegistration: true 
-        };
-      }
-      console.error('Error getting session status:', error.response?.data || error.message);
-      return null;
+      return { 
+        exists: false, 
+        requiresRegistration: true 
+      };
     }
   }
 

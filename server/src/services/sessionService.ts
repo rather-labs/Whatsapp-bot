@@ -9,11 +9,6 @@ interface SessionStatus {
   expirationTime?: string;
 }
 
-interface PinValidationResult {
-  valid: boolean;
-  message: string;
-}
-
 // Session management functions
 const updateUserActivity = (whatsappNumber: string): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -59,7 +54,7 @@ function getUserSessionStatus(whatsappNumber: string): Promise<SessionStatus> {
 }
 
 // Enhanced session management with PIN validation
-function validateUserPin(whatsappNumber: string, pin: string): Promise<PinValidationResult> {
+function validateUserPin(whatsappNumber: string, pin: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     db.get(
       'SELECT encrypted_pin FROM users WHERE whatsapp_number = ?',
@@ -68,15 +63,12 @@ function validateUserPin(whatsappNumber: string, pin: string): Promise<PinValida
         if (err) {
           reject(err);
         } else if (!user) {
-          resolve({ valid: false, message: 'User not found' });
+          reject(new Error('User not found'));
         } else {
           try {
-            const encryptedPin = encryptUserPin(pin, process.env.JWT_SECRET || 'your-secret-key');
+            const encryptedPin = encryptUserPin(pin, process.env.JWT_SECRET);
             const isValid = user.encrypted_pin === encryptedPin;
-            resolve({ 
-              valid: isValid, 
-              message: isValid ? 'PIN validated successfully' : 'Invalid PIN' 
-            });
+            resolve(isValid);
           } catch (error) {
             reject(error);
           }
@@ -86,10 +78,27 @@ function validateUserPin(whatsappNumber: string, pin: string): Promise<PinValida
   });
 }
 
+
+function registerUser(whatsappNumber: string, username: string, pin: number): Promise<boolean> {
+  const encryptedPin = encryptUserPin(pin, process.env.JWT_SECRET);
+  const utcTimestamp = new Date().toISOString();
+  return new Promise((resolve, reject) => {
+    db.run(
+      'INSERT INTO users (whatsapp_number, username, encrypted_pin,  created_at, last_activity) VALUES (?, ?, ?, ?, ?)',
+      [whatsappNumber, username, encryptedPin, utcTimestamp, utcTimestamp], 
+      (err: Error | null) => {
+        if (err) {
+          return reject(new Error('Failed to create user in database'));
+        }
+        resolve(true);
+    });
+  });
+}
+
 export {
   updateUserActivity,
   getUserSessionStatus,
   validateUserPin,
-  type SessionStatus,
-  type PinValidationResult
+  registerUser,
+  type SessionStatus
 }; 

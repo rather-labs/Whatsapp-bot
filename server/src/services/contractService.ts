@@ -11,7 +11,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { publicClient, networkConfig, VAULT_ABI } from '../config/blockchain';
-import { isValidAddress, isValidNumber } from '../utils/vault';
+import { isValidAddress } from '../utils/vault';
 
 interface RegistrationResult {
   success: boolean;

@@ -5,7 +5,7 @@ import db from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import ContractService from '../services/contractService';
-import { getUserSessionStatus } from '../services/sessionService';
+import { getUserSessionStatus, updateUserActivity, validateUserPin, registerUser } from '../services/sessionService';
 import { encryptUserPin } from '../utils/crypto';
 import e from 'express';
 import { authProfiles, riskProfiles } from '../utils/vault';
@@ -113,18 +113,9 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsapp_number}&username=
     // Register user on-chain
     await ContractService.registerUserOnChain(whatsapp_number, wallet_address);
 
-    // Encrypt PIN and create user in database
-    const encryptedPin = encryptUserPin(pinNumber, process.env.JWT_SECRET);
-    const utcTimestamp = new Date().toISOString();
-    db.run(
-        'INSERT INTO users (whatsapp_number, username, encrypted_pin, wallet_address, wallet_balance, vault_balance, created_at, last_activity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [whatsapp_number, username, encryptedPin, wallet_address, 0, 0, utcTimestamp, utcTimestamp], 
-        (err: Error | null) => {
-          if (err) {
-            return res.status(500).json({ error: 'Failed to create user in database' });
-          }
-        }
-      );
+    // Register user in database
+    await registerUser(whatsapp_number, username, pinNumber);
+
     return res.status(200).json({
          message: '✅ User created successfully',
          whatsappNumber: whatsapp_number,
@@ -142,7 +133,7 @@ ${process.env.FRONTEND_URL}/register?whatsappNumber=${whatsapp_number}&username=
 router.get('/session/status/:whatsapp_number', async (req: Request, res: Response) => {
   try {
     const { whatsapp_number } = req.params;
-    
+  
     // Get session status using sessionService
     return res.json({sessionStatus: await getUserSessionStatus(whatsapp_number)});
 
@@ -161,36 +152,13 @@ router.post('/session/validate', async (req: Request, res: Response) => {
       return res.status(404).json({ message: '*User not found*, check that you have registered' });
     }
 
-    // Get encrypted pin from database
-    const user = await new Promise<any>((resolve, reject) => {
-      db.get(
-        'SELECT encrypted_pin FROM users WHERE whatsapp_number = ?',
-        [whatsapp_number],
-        (err: any, row: any) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-    const encryptedPin = encryptUserPin(pin, process.env.JWT_SECRET);
-
-    if (user.encrypted_pin !== encryptedPin) {
+    if (!await validateUserPin(whatsapp_number, pin)) {
       return res.status(401).json({ 
         message: "*Invalid credentials*, use the PIN you set upon registration\n\nPlease enter your PIN to continue:\n\n*PIN:* (4-6 digits)" });
     }
 
     // update user activity    
-    const utcTimestamp = new Date().toISOString();
-    await new Promise<void>((resolve, reject) => {
-      db.run(
-        'UPDATE users SET last_activity = ? WHERE whatsapp_number = ?',
-        [utcTimestamp, whatsapp_number],
-        (err: unknown) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    updateUserActivity(whatsapp_number);
 
     // Get session status using sessionService
     return res.json({success: true});

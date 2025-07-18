@@ -65,10 +65,8 @@ class MessageHandler {
     }
 
     const checkSession = async () => {
-      console.log('checkSession');
       // Check session status and handle expiration
       const sessionResult = await this.sessionManager.checkAndHandleSession(whatsappNumber, contact);
-      console.log('sessionResult', sessionResult);
       if (sessionResult.requiresPin || !sessionResult.registered) {
         return sessionResult.message;
       }
@@ -459,7 +457,7 @@ Send */help* to see available commands 😊`;
   async handleSessionStatus(whatsappNumber, contact) {
     try {
       const sessionInfo = await this.sessionManager.getSessionInfo(whatsappNumber);
-    
+
       if (!sessionInfo) {
         return "📊 *Session Status*\n\n❌ No active session\n\nYou need to register first with /register";
       }

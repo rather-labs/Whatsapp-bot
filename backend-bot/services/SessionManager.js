@@ -159,20 +159,17 @@ Type /help to see available commands.`
   // Get session info for debugging
   async getSessionInfo(whatsappNumber) {
     try {
-
       const sessionStatus = await this.backendService.getSessionStatus(whatsappNumber);
+
+      if (!sessionStatus) {
+        return null;
+      }
+
       const pendingPin = this.pendingPinResponses.has(whatsappNumber);
       
-      return {
-        exists: sessionStatus?.exists ?? false,
-        expired: sessionStatus?.expired ?? true,
-        requiresPin: sessionStatus?.requiresPin ?? false,
-        pendingPin: pendingPin,
-        lastActivity: sessionStatus?.lastActivity ?? null,
-        expirationTime: sessionStatus?.expirationTime ?? null,
-      };
+      sessionStatus.pendingPin = pendingPin;
+      return sessionStatus;
     } catch (error) {
-      console.error('Error getting session info:', error);
       return null;
     }
   }
