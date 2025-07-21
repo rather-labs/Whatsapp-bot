@@ -72,7 +72,6 @@ export default function Home() {
           setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipientName}`);
         } else {
           if (isRecipientAddress(transferData.recipient)) {
-
             setLabel(`Transfer ${transferData.amount} USDC to ${transferData.recipientName}
 (${transferData.recipient.slice(0, 6)}...${transferData.recipient.slice(-4)})`);
           } else {

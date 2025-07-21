@@ -42,11 +42,9 @@ You don't have enough USDC for this payment to ${recipient}.`});
     }
 
     let recipientId = recipient;
-    console.log('recipientId', recipientId);
     if (!isValidNumber(recipientId) && !isValidAddress(recipientId)) {
       // Get recipient WhatsApp number from contacts table if recipient is a contact name
       recipientId = await getContactWhatsappNumber(userData.userId, recipientId);
-      console.log('recipientId whatsapp number', recipientId);
       if (!recipientId) {
         return res.status(400).json({ message: recipientNotRegisteredMessage});
       }
@@ -54,10 +52,10 @@ You don't have enough USDC for this payment to ${recipient}.`});
 
     const recipientIsRegistered = await ContractService.isUserRegisteredOnChain(recipientId);
     if (!recipientIsRegistered) {
-      recipientId = await getContactWalletAddress(userData.userId, recipientId);
-      console.log('recipientId wallet address', recipientId);
-      if (!recipientId) {
-        return res.status(400).json({ message: recipientNotRegisteredMessage});
+      // if the recipient is not registered, get the wallet address from the contacts table
+      const recipientWallet = await getContactWalletAddress(userData.userId, recipientId);
+      if (recipientWallet) {
+        recipientId = recipientWallet;
       }
     }
 
@@ -67,7 +65,7 @@ You don't have enough USDC for this payment to ${recipient}.`});
 
         ${process.env.FRONTEND_URL}/actions/transfer?whatsappNumber=${userData.userId}&recipientName=${recipient}&recipient=${recipientId}&amount=${amount}
         
-        If you want to avoid this step, you can change your auth profile to *Low* with the */authprofile Low* instruction.`});   
+        If you want to avoid this step, you can change your auth profile to *Low* or set a *threshold*.`});   
     }
     // Create URL for user authorized transaction
     const result = await ContractService.sendPayment(whatsappNumber, recipientId, amount);
@@ -116,7 +114,7 @@ You don't have enough USDC for this withdrawal.`});
 
 ${process.env.FRONTEND_URL}/actions/withdraw?whatsappNumber=${userData.userId}&amount=${amount}
         
-If you want to avoid this step, you can change your auth profile to *Low* or *Medium*.`});
+If you want to avoid this step, you can change your auth profile to *Low*/*Medium* or set a *threshold*.`});
     }
     
     const result = await ContractService.withdraw(whatsappNumber, amount);
@@ -165,7 +163,7 @@ You don't have enough USDC for this deposit.`});
 
 ${process.env.FRONTEND_URL}/actions/deposit?whatsappNumber=${userData.userId}&amount=${amount}
         
-If you want to avoid this step, you can change your auth profile to *Low* or *Medium*.`});
+If you want to avoid this step, you can change your auth profile to *Low*/*Medium* or set a *threshold*.`});
     }
     
     const result = await ContractService.deposit(whatsappNumber, amount);

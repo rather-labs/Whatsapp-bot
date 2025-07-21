@@ -384,7 +384,8 @@ Examples:
 
 Please provide the contact name and wallet address you want to set.
 
-If the contact is not a user of the bot, you must also set a wallet address for the contact.`;
+If the contact is not a user of this service, you can set a wallet address for the contact.
+Otherwise, the assets will be stored on the vault until the receiver registers.`;
     }
     const contactName = parts.slice(2).join(' ');
     return await this.backendService.setWallet(userId, contactName, parts[1]);
