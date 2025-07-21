@@ -65,7 +65,7 @@ class BackendService {
         whatsappNumber,
         profile
       });
-      return userResponse.data;
+      return userResponse.data.message;
     } catch (error) {
       console.error('Error getting user profile:', error.response?.data || error.message);
       return { 

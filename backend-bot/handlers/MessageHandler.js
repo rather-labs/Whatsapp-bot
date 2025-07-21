@@ -119,6 +119,11 @@ class MessageHandler {
     if (text.startsWith('/setwallet')) {
       return await checkSession() || await this.handleSetWallet(text, userId);
     }
+
+    if (text.startsWith('/threshold')) {
+      return await checkSession() || await this.getAuthThresholdMessage(text, userId);
+    }
+    
     
     // Default response for unrecognized messages
     if (text.length > 0) {
@@ -320,11 +325,7 @@ Usage: /riskprofile <profile>
 
 Please provide the risk profile you want to set.`;
     }
-    let profile = '';
-    if (parts.length === 2) {
-      profile = parts[1];
-    }
-    return await this.backendService.riskProfile(userId, profile);
+    return await this.backendService.riskProfile(userId, parts[1]);
   }
 
   // *****************************************************
@@ -348,17 +349,13 @@ Examples:
 
 Please provide the authorization profile you want to set.`;
     }
-    let profile = '';
-    if (parts.length === 2) {
-      profile = parts[1];
-    }
-    return await this.backendService.authProfile(userId, profile);
+    return await this.backendService.authProfile(userId, parts[1]);
   }
 
   // *****************************************************
   async getAuthThresholdMessage(text, userId) {
     const parts = text.split(' ');
-    if (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
+    if (parts.length > 2 || parts.length === 2 && Number.isNaN(Number(parts[1]))) {
       return `❌ *Invalid Authorization Threshold Command*
 
 Usage: /threshold <threshold>

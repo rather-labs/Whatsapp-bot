@@ -153,7 +153,7 @@ class ContractService {
     // Generate user ID
     const userId = this.generateUserId(whatsappNumber);
     // Call RegisterUser function
-    const hash = await this.relayerContract.write.RegisterUser([userId, getAddress(walletAddress)]);
+    const hash = await this.relayerContract.write.registerUser([userId, getAddress(walletAddress)]);
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
     console.log(`✅ User registered on-chain: User ID ${userId}, Wallet ${walletAddress}`);
     console.log(`Transaction hash: ${receipt.transactionHash}`);
@@ -328,7 +328,7 @@ class ContractService {
 
         const nonce = await this.vaultContract.read.getNonce([userId]);
 
-        const hash = await this.relayerContract.write.ChangeAuthProfile([userId, Number(profile), nonce]);
+        const hash = await this.relayerContract.write.changeAuthProfile([userId, Number(profile), nonce]);
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
         console.log(`✅ Auth profile registered on-chain: User ID ${userId}, profile ${profile}`);
         console.log(`Transaction hash: ${receipt.transactionHash}`);
@@ -365,7 +365,7 @@ class ContractService {
 
         const nonce = await this.vaultContract.read.getNonce([userId]);
 
-        const hash = await this.relayerContract.write.ChangeRiskProfile([userId, Number(profile), nonce]);
+        const hash = await this.relayerContract.write.changeRiskProfile([userId, Number(profile), nonce]);
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
         console.log(`✅ Risk profile registered on-chain: User ID ${userId}, profile ${profile}`);
         console.log(`Transaction hash: ${receipt.transactionHash}`);

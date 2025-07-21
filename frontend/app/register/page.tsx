@@ -66,7 +66,7 @@ export default function Home() {
       try {
         const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`, {
           whatsapp_number: whatsappNumber,
-          username: username || whatsappNumber,
+          username: username,
           pin: pin,
           wallet_address: address,
         });
@@ -83,6 +83,7 @@ export default function Home() {
           }
         }
       } catch (err) {
+        console.log(err);
         alert(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     } else {

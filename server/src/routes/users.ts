@@ -198,7 +198,7 @@ router.post('/authprofile', async (req: Request, res: Response) => {
 
     const userId = ContractService.generateUserId(whatsappNumber);
 
-    if (profile === '') {
+    if (!profile) {
       return res.status(200).json({message: `Your current authorization profile is: *${authProfiles[currentProfile]}*`});
     }
     if (Number(currentProfile) < 2 ) {
@@ -220,7 +220,7 @@ If you want to avoid this step, you can change your authorization profile to *Lo
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -233,7 +233,7 @@ router.post('/auththreshold', async (req: Request, res: Response) => {
 
     const userId = ContractService.generateUserId(whatsappNumber);
 
-    if (threshold === '') {
+    if (!threshold) {
       return res.status(200).json({message: `Your current authorization threshold is: *${currentAuthThreshold}*`});
     }
 
@@ -244,7 +244,7 @@ ${process.env.FRONTEND_URL}/actions/changeAuthThres?whatsappNumber=${userId}&thr
 `});    
 
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -255,14 +255,13 @@ router.post('/riskprofile', async (req: Request, res: Response) => {
     const { whatsappNumber, profile } = req.body;
     
     const currentProfile = await ContractService.getRiskProfile(whatsappNumber);
-
-
-    const userId = ContractService.generateUserId(whatsappNumber);
-
-    if (profile === '') {
+    
+    if (!profile) {
       return res.status(200).json({message: `Your current risk profile is: *${riskProfiles[currentProfile]}*`});
     }
+
     const currentAuthProfile = await ContractService.getAuthProfile(whatsappNumber);
+    const userId = ContractService.generateUserId(whatsappNumber);
 
     if (Number(currentAuthProfile) < 2 ) {
       return res.status(200).json({ message: `To *Change risk profile*, tap in the link below
@@ -283,7 +282,7 @@ If you want to avoid this step, you can change your authorization profile to *Lo
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: error.message });
   }
 });
 
