@@ -74,7 +74,6 @@ You don't have enough USDC for this payment to ${recipient}.`});
        message = `✅ *Payment of ${amount} USDC Successful to ${recipient}!*
 
 🏦 Transaction: ${result.transactionHash}
-📅 Time: ${new Date().toLocaleString()}
 `;
     } else {
       message = `❌ *Payment Failed*
@@ -124,7 +123,6 @@ If you want to avoid this step, you can change your auth profile to *Low*/*Mediu
        message = `✅ *Vault Withdrawal of ${amount} USDC Successful!*
 
 🏦 Transaction: ${result.transactionHash}
-📅 Time: ${new Date().toLocaleString()}
 `;
     } else {
       message = `❌ *Vault Withdrawal Failed*
@@ -173,7 +171,6 @@ If you want to avoid this step, you can change your auth profile to *Low*/*Mediu
        message = `✅ *Vault Deposit of ${amount} USDC Successful!*
 
 🏦 Transaction: ${result.transactionHash}
-📅 Time: ${new Date().toLocaleString()}
 
 Your assets are generating yield!`;
     } else {

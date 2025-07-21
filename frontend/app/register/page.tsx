@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { success, setCalls } = useTransaction();
+  const { success, setCalls, receipts, calls } = useTransaction();
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [pin, setPin] = useState<string | null>(null);
@@ -37,8 +37,7 @@ export default function Home() {
           address: tokenAddress as `0x${string}`,
           abi: erc20Abi,
           functionName: 'approve',
-          args: [vaultAddress as `0x${string}`, maxUint256],
-          value: BigInt(0)
+          args: [vaultAddress as `0x${string}`, maxUint256]
         }
       ]);
     } else {
@@ -47,6 +46,9 @@ export default function Home() {
     }
   }, [tokenAddress, vaultAddress, setCalls]);
 
+  useEffect(() => {
+    console.log('receipts', receipts);
+  }, [receipts]);
 
 
   useEffect(() => {
@@ -72,7 +74,6 @@ export default function Home() {
         });
         
         if (response.status === 200) {
-          const data = response.data;
           setIsSubmitted(true);
         } else {
           const errorData = response.data;
