@@ -224,6 +224,31 @@ If you want to avoid this step, you can change your authorization profile to *Lo
   }
 });
 
+// Get/Set user authentication threshold endpoint
+router.post('/auththreshold', async (req: Request, res: Response) => {
+  try {
+    const { whatsappNumber, threshold } = req.body;
+    
+    const currentAuthThreshold = await ContractService.getAuthThreshold(whatsappNumber);
+
+    const userId = ContractService.generateUserId(whatsappNumber);
+
+    if (threshold === '') {
+      return res.status(200).json({message: `Your current authorization threshold is: *${currentAuthThreshold}*`});
+    }
+
+    return res.status(200).json({ message: `To *Change authorization threshold*, tap in the link below
+
+${process.env.FRONTEND_URL}/actions/changeAuthThres?whatsappNumber=${userId}&threshold=${threshold}
+
+`});    
+
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 
 router.post('/riskprofile', async (req: Request, res: Response) => {
   try {

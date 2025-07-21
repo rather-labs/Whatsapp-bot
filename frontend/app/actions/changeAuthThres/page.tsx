@@ -6,11 +6,10 @@ import { useAccount, usePublicClient } from 'wagmi';
 import { useTransaction } from '../../context/TransactionContext';
 import SignTransaction from '../../components/SignTransaction';
 import TokenVaultWithRelayerJson from '../../utils/TokenVaultWithRelayer.json' assert { type: "json" };
-import { authProfiles } from '@/app/utils/dataStructures';
 
 type ChangeAuthData = {
   whatsappNumber: string | null;
-  authProfile: string | null;
+  authThreshold: string | null;
 };
 
 export default function Home() {
@@ -21,7 +20,7 @@ export default function Home() {
   const { setCalls, setLabel, receipts } = useTransaction();
   const [changeAuthData, setChangeAuthData] = useState<ChangeAuthData>({
     whatsappNumber: null,
-    authProfile: null
+    authThreshold: null
   });
 
   const client = usePublicClient();
@@ -31,7 +30,7 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       setChangeAuthData({
         whatsappNumber: params.get("whatsappNumber"),
-        authProfile: params.get("profile")
+        authThreshold: params.get("threshold")
       });
     }
   }, []);
@@ -42,7 +41,7 @@ export default function Home() {
       if (vaultAddress && vaultAddress !== '0x' 
           && client 
           && changeAuthData.whatsappNumber
-          && changeAuthData.authProfile
+          && changeAuthData.authThreshold
         ) {
         const nonce = await client.readContract({
           address: vaultAddress,
@@ -50,15 +49,15 @@ export default function Home() {
           functionName: 'getNonce',
           args: [changeAuthData.whatsappNumber],
         });
-        setLabel(`Change authorization profile to ${changeAuthData.authProfile}`);
+        setLabel(`Change authorization threshold to ${changeAuthData.authThreshold}`);
         setCalls([
           {
             // @ts-ignore - viem client type compatibility issue
             address: vaultAddress as `0x${string}`, // 'to:' fails
             abi: TokenVaultWithRelayerJson.abi,
-            functionName: 'changeAuthProfile',
+            functionName: 'changeAuthThreshold',
             args: [changeAuthData.whatsappNumber, 
-                   BigInt(authProfiles.indexOf(changeAuthData.authProfile.toLowerCase())), 
+                   BigInt(changeAuthData.authThreshold), 
                    nonce
                   ],
             value: BigInt(0)

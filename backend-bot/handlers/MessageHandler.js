@@ -164,6 +164,7 @@ type */help* to see available commands 😊`;
     • Low - The user is not required to sign autorization for any actions
     • Medium - The user can deposit or withdraw assets to their wallet without signing authorization
     • High - The user is required to sign autorization for all actions
+• */threshold <threshold>* - Check and change user authorization threshold
 
 *Admin Commands:*
 • */disconnect* - Disconnect the bot (admin or bot number only)
@@ -304,6 +305,7 @@ Please provide the amount you want to withdraw from the vault.`;
     return await this.backendService.withdraw(userId, parts[1]);
   }
 
+  // *****************************************************
   async getRiskProfileMessage(text, userId) {
     const parts = text.split(' ');
     if (parts.length > 2
@@ -351,6 +353,22 @@ Please provide the authorization profile you want to set.`;
       profile = parts[1];
     }
     return await this.backendService.authProfile(userId, profile);
+  }
+
+  // *****************************************************
+  async getAuthThresholdMessage(text, userId) {
+    const parts = text.split(' ');
+    if (parts.length !== 2 || Number.isNaN(Number(parts[1]))) {
+      return `❌ *Invalid Authorization Threshold Command*
+
+Usage: /threshold <threshold>
+Example: /threshold 100
+
+Please provide the threshold you want to set.
+This threhold will only apply if your authorization profile is *Medium* or *High*.
+You will not be required to sign autorization for actions below this threshold.`;
+    }   
+    return await this.backendService.authThreshold(userId, parts[1]);
   }
 
   // *****************************************************

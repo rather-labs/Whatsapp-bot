@@ -88,6 +88,18 @@ class BackendService {
     }
   }
 
+  async authThreshold(whatsappNumber, threshold) {
+    try {
+      const userResponse = await axios.post(`${this.BACKEND_SERVER_URL}/api/users/auththreshold`, {
+        whatsappNumber,
+        threshold
+      });
+      return userResponse.data.message;
+    } catch (error) {
+      return error.response?.data.message || error.message;
+    }
+  }
+
   // Check backend server health
   async checkHealth() {
     try {

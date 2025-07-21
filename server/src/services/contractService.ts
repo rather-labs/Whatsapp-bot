@@ -33,6 +33,7 @@ interface UserOnChainData {
   walletAddress: string;
   riskProfile: string;
   authProfile: string;
+  authThreshold: string;
   vaultBalance: string;
   walletBalance: string;
 }
@@ -178,10 +179,11 @@ class ContractService {
     if (walletAddress === '0x0000000000000000000000000000000000000000') {
       throw new Error('❌ User not registered on-chain');
     }
-    const [riskProfile, authProfile, assets] = await Promise.all([
+    const [riskProfile, authProfile, authThreshold, assets] = await Promise.all([
       this.vaultContract.read.getUserRiskProfile([userId]),
-      this.vaultContract.read.getUserAuthProfile([userId]),
-      this.vaultContract.read.getUserAssets([userId])
+        this.vaultContract.read.getUserAuthProfile([userId]),
+        this.vaultContract.read.getUserAuthThreshold([userId]),
+        this.vaultContract.read.getUserAssets([userId])
     ]);
 
     const decimals = Number(await this.usdcContract.read.decimals());
@@ -193,6 +195,7 @@ class ContractService {
       walletAddress,
       riskProfile: riskProfile.toString(),
       authProfile: authProfile.toString(),
+      authThreshold: authThreshold.toString(),
       vaultBalance: vaultBalance.toString(),
       walletBalance: walletBalance.toString(),
     };
@@ -302,6 +305,17 @@ class ContractService {
     const profile = await this.relayerContract.read.getUserAuthProfile([userId]);
     return profile;
   }
+
+  /**
+   * Get user's authorization profile
+   * @param whatsappNumber - User's WhatsApp number
+   * @returns Transaction result
+   */
+    async getAuthThreshold(whatsappNumber: string): Promise<string>   {
+      const userId = this.generateUserId(whatsappNumber);
+      const threshold = await this.relayerContract.read.getUserAuthThreshold([userId]);
+      return threshold;
+    }
      
   /**
    * Set user's authorization profile

@@ -56,7 +56,7 @@ export default function Home() {
             // @ts-ignore - viem client type compatibility issue
             address: vaultAddress as `0x${string}`, // 'to:' fails
             abi: TokenVaultWithRelayerJson.abi,
-            functionName: 'ChangeRiskProfile',
+            functionName: 'changeRiskProfile',
             args: [changeAuthData.whatsappNumber, 
                    BigInt(riskProfiles.indexOf(changeAuthData.authProfile.toLowerCase())), 
                    nonce
