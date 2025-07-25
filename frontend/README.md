@@ -2,23 +2,26 @@
 
 A comprehensive WhatsApp bot system with blockchain integration, featuring user management, USDC payments, vault deposits, and EVM blockchain transactions.
 
+**Note: This is a Proof of Concept implementation. Some features like on-ramp and off-ramp services are currently disabled.**
+
 ## 🏗️ Architecture
 
-The system consists of two main components:
+The system consists of three main components:
 
-1. **WhatsApp Bot Server** (`backend-bot/`) - Handles WhatsApp messaging and user interactions - To be replaced by Whatsapp Business API for production deployment.
-2. **Server** (`server/`) - Manages user data, wallets, and blockchain integration
+1. **Backend Bot** (`backend-bot/`) - WhatsApp Web client that handles message processing and user interactions. For development, to be replaced by WhatsApp services.
+2. **Server** (`server/`) - REST API backend for user management, blockchain operations, and database management
+3. **Frontend** (`frontend/`) - Next.js web application providing a user interface for user registration and authorized operations, according to user preferences
 
 ```
 ┌─────────────────┐    HTTP API    ┌──────────────────┐
-│   WhatsApp Bot  │◄──────────────►│ Server│
+│   WhatsApp Bot  │◄──────────────►│ Server           │
 │   (Port 3001)   │                │   (Port 3002)    │
 └─────────────────┘                └──────────────────┘
          │                                   │
          │                                   │
     WhatsApp Web                    ┌────────┴────────┐
          │                          │                 │
-    User Messages                   │   SQLite DB     │
+    User Messages                   │   Supabase DB   │
                                     │  EVM Blockchain │
                                     └─────────────────┘
 ```
@@ -29,6 +32,7 @@ The system consists of two main components:
 - Node.js (v16 or higher)
 - npm or yarn
 - A smartphone with WhatsApp installed
+- Supabase database configured
 
 ### 1. Start the Server
 
@@ -58,10 +62,22 @@ npm install
 npm start
 ```
 
-### 3. Connect WhatsApp
+### 3. Start the Frontend
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the frontend
+npm run dev
+```
+
+### 4. Connect WhatsApp
 
 1. Open your browser and go to `http://localhost:3001`
-2. Scan the QR code with your WhatsApp mobile app
+2. Scan the QR code with your WhatsApp mobile app (for QR code WhatsApp login)
 3. Wait for the "Connected & Ready" status
 
 ## 📱 Bot Commands
@@ -74,16 +90,12 @@ npm start
 - `/session` - Check your session status
 
 ### User Registration & Authentication
-- `/register` - Register a new user account (requires PIN)
+- `/register` - Register a new user account (requires PIN via frontend)
 - **Session Management**: Automatic PIN prompting when session expires (5-minute inactivity)
 
 ### Wallet Commands
-- `/balance` - Check your USDC balance
-- `/pay <amount> <recipient>` - Send USDC to another user
-- `/buy <amount>` - Buy USDC tokens
-- `/sell <amount>` - Sell USDC tokens
-
-### Vault Commands
+- `/balance` - Check your USDC balance (vault + wallet)
+- `/pay <amount> <recipient>` - Send USDC to another user or external wallet
 - `/deposit <amount>` - Deposit USDC to vault for yield
 - `/withdraw <amount>` - Withdraw USDC from vault
 
@@ -91,8 +103,32 @@ npm start
 - `/riskprofile` - View/change risk profile
 - `/authprofile` - Check authentication level
 
+### Ramp Commands
+- `/buy` - On-ramp services (currently disabled - PoC)
+- `/sell` - Off-ramp services (currently disabled - PoC)
+
 ### Contact Commands
 - Share contacts - Bot automatically parses vCard information
+
+## 🌐 Frontend Features
+
+The frontend provides web-based interfaces for:
+
+### User Registration
+- `/register` - Complete user registration with PIN setup
+- Blockchain integration for on-chain user registration
+
+### Authorized Operations
+- `/actions/transfer` - Authorize USDC transfers
+- `/actions/deposit` - Authorize vault deposits
+- `/actions/withdraw` - Authorize vault withdrawals
+- `/actions/changeAuth` - Modify authentication profile
+- `/actions/changeRisk` - Modify risk profile
+- `/actions/changeAuthThres` - Set authorization thresholds
+
+### Ramp Services (Currently Disabled)
+- `/actions/onramp` - On-ramp interface (shows "unavailable" message)
+- `/actions/offramp` - Off-ramp interface (shows "unavailable" message)
 
 ## 🔧 Configuration
 
@@ -103,18 +139,23 @@ Create a `.env` file in the `server/` directory:
 ```env
 # Server Configuration
 BACKEND_PORT=3002
-JWT_SECRET=your-super-secret-jwt-key
+JWT_SECRET=your-super-secret
 
 # Blockchain Network
-NETWORK=sepolia
-BASE_SEPOLIA_RPC=https://base-sepolia.infura.io/v3/YOUR_PROJECT_ID
-BASE_MAINNET_RPC=https://base-rpc.com
+NETWORK=baseSepolia
+BASE_SEPOLIA_RPC=https://sepolia.base.org
+BASE_MAINNET_RPC=https://mainnet.base.org
 
-# USDC Contract
-USDC_CONTRACT_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+# Smart Contracts
+USDC_CONTRACT_ADDRESS=0x...
+VAULT_CONTRACT_ADDRESS=0x...
 
-# WhatsApp Bot Integration
-WHATSAPP_BOT_URL=http://localhost:3001
+# Database
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_ROLE_KEY=your-service-key
+
+# Frontend Integration
+FRONTEND_URL=http://localhost:3000
 ```
 
 ### WhatsApp Bot Environment Variables
@@ -128,38 +169,37 @@ BACKEND_SERVER_URL=http://localhost:3002
 
 ### Frontend Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create a `.env.local` file in the `frontend/` directory:
 
 ```env
-NEXT_PUBLIC_BACKEND_URL=http://localhost:3002
+NEXT_PUBLIC_API_URL=http://localhost:3002
 ```
 
 ## 🌐 API Endpoints
 
 ### Server (Port 3002)
 
-#### Authentication & Session Management
-- `POST /api/users/register` - Register new user
-- `POST /api/users/login` - User login
-- `GET /api/users/profile` - Get user profile
+#### User Management
+- `GET /api/users/check/:whatsapp_number` - Check blockchain registration
+- `GET /api/users/data/:whatsapp_number` - Get user data and balances
+- `POST /api/users/register` - Register new user with blockchain integration
+
+#### Session Management
 - `POST /api/users/session/validate` - Comprehensive session validation with PIN handling
 - `GET /api/users/session/status/:whatsapp_number` - Get detailed session status
-- `POST /api/users/session/update` - Update user activity (legacy)
 
-#### Wallet Operations
-- `GET /api/wallet/balance` - Get wallet balance
-- `POST /api/wallet/pay` - Send USDC payment
-- `POST /api/wallet/buy` - Buy USDC
-- `POST /api/wallet/sell` - Sell USDC
+#### Transfer Operations
+- `POST /api/transfers/pay` - Send USDC payment
+- `POST /api/transfers/deposit` - Deposit to vault
+- `POST /api/transfers/withdraw` - Withdraw from vault
 
-#### Vault Operations
-- `POST /api/vault/deposit` - Deposit to vault
-- `POST /api/vault/withdraw` - Withdraw from vault
-- `GET /api/vault/deposits` - Get vault deposits
+#### Ramp Operations
+- `POST /api/ramps/onramp` - Generate on-ramp URLs (PoC - limited functionality)
+- `POST /api/ramps/offramp` - Generate off-ramp URLs (PoC - limited functionality)
 
 #### System
 - `GET /api/health` - Health check
-- `GET /api/transactions` - Transaction history
+- Contact management endpoints
 
 ### WhatsApp Bot (Port 3001)
 
@@ -167,119 +207,77 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:3002
 - `GET /api/status` - Bot status
 - `GET /api/health` - Health check
 - `POST /api/send-message` - Send message programmatically
-- `GET /api/wallets` - Local wallet data
-
-## 💾 Database Schema
-
-The server uses SQLite with the following tables:
-
-- **users** - User accounts and profiles (includes `last_activity` for session management)
-- **wallets** - Wallet addresses and balances
-- **transactions** - Transaction history
-- **vault_deposits** - Vault deposit records
 
 ## 🔒 Security Features
 
 ### Server
-- JWT-based authentication
 - Session management with 5-minute inactivity timeout
 - PIN-based authentication for session restoration
-- Password hashing with bcrypt
-- Rate limiting
-- Helmet security headers
-- Encrypted private key storage
-- Input validation
+- Encrypted PIN storage in Supabase
+- Authorization profiles for transaction approval
 
 ### WhatsApp Bot
 - Secure WhatsApp Web integration
 - Simplified session management (delegates to server)
 - PIN prompting only when session expires
-- Message validation
-- Error handling
-- Contact management
+- Message validation and contact management
 
 ## 🔐 Session Management
 
-The system features **centralized session management** with intelligent PIN handling that enhances security while improving user experience:
+The system features **centralized session management** with intelligent PIN handling:
 
 ### Architecture
 - **Server-Centric**: All session logic is centralized in the server component
 - **Backend-Bot Simplified**: Only handles PIN prompting locally, delegates all session logic to server
-- **Database-Driven**: Session state stored securely in database with `last_activity` tracking
+- **Database-Driven**: Session state stored securely in Supabase with `last_activity` tracking
 
-### How It Works
-1. **Centralized Session Tracking**: Server manages all session state and activity
-2. **5-Minute Inactivity Timeout**: Sessions expire after 5 minutes of no activity
-3. **Smart PIN Prompting**: Users are only prompted for PIN when session expires
-4. **Seamless Restoration**: Correct PIN immediately restores the session via server validation
-
-### User Experience
-- **No Constant PIN Entry**: Users don't need to enter PIN for every command
-- **Automatic Activity Updates**: Any message or command resets the session timer
-- **Clear Session Status**: Use `/session` command to check current session status
-- **Graceful Expiration**: Clear messaging when session expires
-
-### Security Benefits
-- **Reduced PIN Exposure**: PIN is only entered when necessary
-- **Centralized Security**: All PIN validation happens on the server
-- **Automatic Logout**: Sessions expire automatically for security
-- **Activity Tracking**: Database stores last activity timestamps
-- **Token Management**: Automatic token refresh and cleanup
-
-### Technical Implementation
-- **Server Endpoints**: `/api/users/session/validate` and `/api/users/session/status/:whatsapp_number`
-- **BackendService**: Simplified to only query server for session status
-- **SessionManager**: Streamlined to handle only PIN prompting locally
-- **Database Integration**: `last_activity` column tracks user activity
-- **Automatic Integration**: All commands automatically update session activity
+### Authorization Levels
+- **High**: Requires frontend authorization for all transactions
+- **Medium**: Requires frontend authorization for most transactions
+- **Low**: Minimal authorization requirements
 
 ## 🏦 Vault System
 
 The vault system allows users to:
-- Deposit USDC for yield generation
-- Earn 5% APY on deposits
+- Deposit USDC for yield generation via smart contracts
 - Withdraw funds at any time
-- Track deposit history
+- Track balances through on-chain queries
+- Manage authorization levels for operations
 
 ## 🌐 Blockchain Integration
 
 ### Supported Networks
-- **Base Sepolia Testnet** (default for development)
-- **Base Mainnet** (production)
+- **Base Sepolia** (recommended for testing)
+- **Base Mainnet** (for production deployment)
 
 ### Features
-- USDC token transfers
-- On-chain transaction execution
-- Gas estimation and management
-- Multi-network support
-- Transaction history tracking
+- Smart contract-based user registration
+- USDC vault deposits and withdrawals
+- On-chain asset management
+- Gasless transactions via relayer pattern
 
 ## 📊 Monitoring
 
 ### Health Checks
 - Server: `http://localhost:3002/api/health`
 - WhatsApp bot: `http://localhost:3001/api/health`
-
-### Web Dashboard
-- WhatsApp bot dashboard: `http://localhost:3001`
-- Real-time status monitoring
-- QR code display for authentication
+- Frontend: `http://localhost:3000`
 
 ## 🚀 Production Deployment
 
 ### Security Checklist
 1. Use strong JWT secrets
-2. Implement proper encryption for private keys
-3. Add rate limiting and DDoS protection
+2. Secure Supabase configuration
+3. Implement proper encryption for private keys
 4. Use HTTPS in production
 5. Implement proper logging and monitoring
 6. Regular security audits
 
 ### Environment Setup
-1. Configure production backend RPC endpoints
-2. Set up proper database backups
-3. Implement monitoring and alerting
-4. Use environment-specific configurations
+1. Configure production Supabase instance
+2. Deploy smart contracts to mainnet
+3. Set up proper relayer configuration
+4. Configure production RPC endpoints
 
 ## 🛠️ Development
 
@@ -289,18 +287,24 @@ whatsapp-base-bot-smart-wallet/
 ├── backend-bot/           # WhatsApp bot server
 │   ├── server.js         # Main bot server
 │   ├── handlers/
-│   │   └── MessageHandler.js  # Message processing with simplified session handling
+│   │   └── MessageHandler.js  # Message processing
 │   ├── services/
-│   │   ├── BackendService.js  # Backend API integration (simplified session management)
-│   │   └── SessionManager.js  # PIN prompting only (delegates session logic to server)
-│   ├── package.json      # Bot dependencies
-│   └── README.md         # Bot documentation
-├── server/               # Server (centralized session management)
-│   ├── server.js         # Main server with enhanced session endpoints
-│   ├── package.json      # Server dependencies
-│   ├── env.example       # Environment template
-│   └── README.md         # Server documentation
-├── app/                  # Frontend (if applicable)
+│   │   ├── BackendService.js  # Backend API integration
+│   │   └── SessionManager.js  # PIN prompting
+│   └── package.json      # Bot dependencies
+├── server/               # Backend API server
+│   ├── src/
+│   │   ├── config/       # Database and blockchain config
+│   │   ├── routes/       # API route handlers
+│   │   ├── services/     # Business logic
+│   │   └── utils/        # Utility functions
+│   └── package.json      # Server dependencies
+├── frontend/             # Next.js web application
+│   ├── app/
+│   │   ├── actions/      # Authorization pages
+│   │   ├── components/   # React components
+│   │   └── register/     # Registration page
+│   └── next.config.ts    # Next.js configuration
 └── README.md            # This file
 ```
 
@@ -313,7 +317,23 @@ npm run dev
 # Terminal 2 - WhatsApp Bot
 cd backend-bot
 npm run dev
+
+# Terminal 3 - Frontend
+cd frontend
+npm run dev
 ```
+
+## ⚠️ Current Limitations
+
+### Proof of Concept Status
+- **On-ramp services**: Currently disabled and show warning messages
+- **Off-ramp services**: Currently disabled and show warning messages
+- **Limited testing**: Primarily configured for Base Sepolia testnet
+
+### Known Issues
+- On-ramp integration requires external service setup
+- Off-ramp integration requires compliance and KYC setup
+- Some advanced features may require additional configuration
 
 ## 📝 License
 
@@ -336,53 +356,11 @@ For issues and questions:
 4. Verify environment configuration
 5. Create an issue on GitHub
 
-### Session Management Troubleshooting
-
-**Session not expiring:**
-- Check if `last_activity` column exists in database
-- Verify server is running and accessible
-- Check network connectivity between bot and server
-
-**PIN not working:**
-- Ensure PIN format is 4-6 digits
-- Verify user is registered in the system
-- Check server logs for authentication errors
-
-**Activity not updating:**
-- Verify API endpoints are accessible
-- Check server logs for session update errors
-- Ensure bot has proper permissions
-
-**Session status unclear:**
-- Use `/session` command to check current status
-- Check server logs for session operations
-- Verify database connection is working
-
-## 🔄 Recent Updates
-
-### Session Management Refactoring (Latest)
-- ✅ **Centralized Session Management**: All session logic moved to server component
-- ✅ **Simplified Backend-Bot**: Removed local session state, only handles PIN prompting
-- ✅ **Enhanced Server APIs**: New `/api/users/session/validate` and `/api/users/session/status/:whatsapp_number` endpoints
-- ✅ **Improved Security**: PIN validation centralized on server
-- ✅ **Better Scalability**: Server can handle multiple bot instances
-- ✅ **Reduced Memory Usage**: Less local state to maintain in backend-bot
-
-### Security Improvements
-- ✅ **Reduced PIN Exposure**: PIN only entered when necessary
-- ✅ **Automatic Session Cleanup**: Expired sessions are properly handled
-- ✅ **Activity Tracking**: Database stores user activity timestamps
-- ✅ **Graceful Error Handling**: Clear messaging for session issues
-
 ## 🔮 Future Enhancements
 
-- [ ] Multi-token support (ETH, MATIC, etc.)
-- [ ] Advanced vault strategies
-- [ ] Mobile app integration
-- [ ] Web dashboard for wallet management
-- [ ] DeFi protocol integrations
-- [ ] Cross-chain transactions
-- [ ] Advanced security features (2FA, hardware wallets)
-- [ ] Analytics and reporting
-- [ ] Configurable session timeouts per user
-- [ ] Session history and analytics
+- [ ] Migration to WhatsApp Business API
+- [ ] Complete on-ramp/off-ramp integration
+- [ ] Add security features to server and frontend
+- [ ] Multi-language support
+- [ ] Integration with more blockchain networks
+- [ ] Advanced trading features

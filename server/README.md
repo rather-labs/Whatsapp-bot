@@ -5,41 +5,36 @@ A comprehensive backend server that provides user management, wallet functionali
 ## Features
 
 ### 🔐 User Management
-- User registration and authentication
-- JWT-based authentication
+- User registration and blockchain integration
 - Numeric PIN authentication (4-6 digits)
 - User profiles with risk and auth levels
 - **Centralized session management** with 5-minute inactivity timeout
 - PIN-based session restoration
 
 ### 💰 Wallet System
-- Automatic wallet generation for new users
-- USDC token management
-- ETH balance tracking
-- Vault deposits with yield generation
-- Transaction history and tracking
+- On-chain user registration via smart contracts
+- USDC token management through vault system
+- Vault deposits and withdrawals with yield generation
+- Transaction processing with authorization levels
 
 ### 🌐 Blockchain Integration
-- EVM-compatible blockchain support (Ethereum, Polygon)
-- USDC token transfers
-- On-chain transaction execution
-- Gas estimation and management
-- Multi-network support
+- EVM-compatible blockchain support (Base network)
+- Smart contract integration for user registration
+- On-chain asset management
+- Gas-optimized transactions via relayer pattern
 
 ### 🏦 Vault System
-- Yield-generating vault deposits
-- Configurable APY rates
-- Deposit and withdrawal functionality
-- Risk profile management
+- Smart contract-based vault deposits
+- Yield-generating deposits
+- Configurable authorization profiles
+- Risk management settings
 
 ### 🔒 Security Features
-- Rate limiting
-- Helmet security headers
-- Input validation
-- Encrypted private key storage
-- JWT token management
+- PIN-based authentication
+- Encrypted PIN storage
 - **Centralized PIN validation** for session restoration
 - **Session expiration handling** with automatic cleanup
+- Authorization profiles for transaction approval
 
 ## Installation
 
@@ -61,10 +56,16 @@ A comprehensive backend server that provides user management, wallet functionali
    Edit the `.env` file with your configuration:
    ```env
    BACKEND_PORT=3002
-   JWT_SECRET=your-super-secret-jwt-key
-   NETWORK=sepolia
-   SEPOLIA_RPC=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
-   USDC_CONTRACT_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+   JWT_SECRET=your-super-secret
+   NETWORK=baseSepolia
+   BASE_SEPOLIA_RPC=https://sepolia.base.org
+   BASE_MAINNET_RPC=https://mainnet.base.org
+   USDC_CONTRACT_ADDRESS=0x...
+   VAULT_CONTRACT_ADDRESS=0x... # Your deployed vault contract
+   PRIVATE_KEY=0x... # Relayer wallet private key
+   SUPABASE_URL=your-supabase-url
+   SUPABASE_SERVICE_ROLE_KEY=your-service-key
+   FRONTEND_URL=http://localhost:3000
    ```
 
 4. **Start the server:**
@@ -78,395 +79,121 @@ A comprehensive backend server that provides user management, wallet functionali
 
 ## API Endpoints
 
-### Authentication
-
-#### POST `/api/users/register`
-Register a new user with wallet creation.
-
-**Request Body:**
-```json
-{
-  "whatsapp_number": "1234567890",
-  "username": "john_doe",
-  "pin": 1234
-}
-```
-
-**Response:**
-```json
-{
-  "message": "User created successfully",
-  "userId": "uuid",
-  "walletAddress": "0x..."
-}
-```
-
-#### POST `/api/users/login`
-Authenticate user and get JWT token.
-
-**Request Body:**
-```json
-{
-  "whatsapp_number": "1234567890",
-  "pin": 1234
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Login successful",
-  "token": "jwt_token",
-  "user": {
-    "id": "uuid",
-    "whatsapp_number": "1234567890",
-    "username": "john_doe",
-    "wallet_address": "0x..."
-  }
-}
-```
-
 ### User Management
 
-#### GET `/api/users/profile`
-Get user profile (requires authentication).
+#### GET `/api/users/check/:whatsapp_number`
+Check if user is registered on blockchain.
 
-**Headers:**
-```
-Authorization: Bearer <jwt_token>
-```
+#### GET `/api/users/data/:whatsapp_number`
+Get user's on-chain data and balances.
 
-**Response:**
-```json
-{
-  "id": "uuid",
-  "whatsapp_number": "1234567890",
-  "username": "john_doe",
-  "wallet_address": "0x...",
-  "risk_profile": "moderate",
-  "auth_profile": "basic",
-  "created_at": "2024-01-01T00:00:00.000Z"
-}
-```
-
-#### POST `/api/users/risk-profile`
-Update user risk profile (requires authentication).
-
-**Request Body:**
-```json
-{
-  "risk_profile": "high"
-}
-```
+#### POST `/api/users/register`
+Register new user with blockchain integration.
 
 ### Session Management
 
 #### POST `/api/users/session/validate`
 Comprehensive session validation with PIN handling.
 
-**Request Body:**
-```json
-{
-  "whatsapp_number": "1234567890",
-  "pin": 1234  // Optional - only required if session expired
-}
-```
-
-**Response (Valid Session):**
-```json
-{
-  "success": true,
-  "message": "Session is valid",
-  "requiresPin": false,
-  "sessionExpired": false
-}
-```
-
-**Response (Expired Session, No PIN):**
-```json
-{
-  "success": false,
-  "message": "Session expired, PIN required",
-  "requiresPin": true,
-  "sessionExpired": true
-}
-```
-
-**Response (Invalid PIN):**
-```json
-{
-  "success": false,
-  "message": "Invalid PIN",
-  "requiresPin": true,
-  "sessionExpired": true
-}
-```
-
 #### GET `/api/users/session/status/:whatsapp_number`
 Get detailed session status for a user.
 
-**Response:**
-```json
-{
-  "exists": true,
-  "expired": false,
-  "lastActivity": "2024-01-01T12:00:00.000Z",
-  "requiresPin": false,
-  "requiresRegistration": false
-}
-```
+### Transfer Operations
 
-### Wallet Operations
+#### POST `/api/transfers/pay`
+Send USDC payment to another user or external wallet.
 
-#### GET `/api/wallet/balance`
-Get wallet balance (requires authentication).
+#### POST `/api/transfers/deposit`
+Deposit USDC to vault for yield generation.
 
-**Response:**
-```json
-{
-  "wallet_address": "0x...",
-  "balance_usdc": 1000.0,
-  "balance_eth": 0.1,
-  "vault_balance": 500.0,
-  "onchain_usdc": 1000.0
-}
-```
+#### POST `/api/transfers/withdraw`
+Withdraw USDC from vault.
 
-#### POST `/api/wallet/pay`
-Send USDC payment (requires authentication).
+### Ramp Operations
 
-**Request Body:**
-```json
-{
-  "amount": 100,
-  "recipient": "0x..."
-}
-```
+#### POST `/api/ramps/onramp`
+Generate on-ramp URL for funding wallet.
 
-**Response:**
-```json
-{
-  "message": "Payment sent successfully",
-  "transactionId": "uuid",
-  "txHash": "0x...",
-  "amount": 100,
-  "recipient": "0x..."
-}
-```
+#### POST `/api/ramps/offramp`
+Generate off-ramp URL for converting to fiat.
 
-#### POST `/api/wallet/buy`
-Buy USDC tokens (requires authentication).
+### Contact Management
 
-**Request Body:**
-```json
-{
-  "amount": 100
-}
-```
-
-#### POST `/api/wallet/sell`
-Sell USDC tokens (requires authentication).
-
-**Request Body:**
-```json
-{
-  "amount": 50
-}
-```
-
-### Vault Operations
-
-#### POST `/api/vault/deposit`
-Deposit USDC to vault (requires authentication).
-
-**Request Body:**
-```json
-{
-  "amount": 200
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Deposited to vault successfully",
-  "depositId": "uuid",
-  "transactionId": "uuid",
-  "amount": 200,
-  "apy": 0.05
-}
-```
-
-#### POST `/api/vault/withdraw`
-Withdraw USDC from vault (requires authentication).
-
-**Request Body:**
-```json
-{
-  "amount": 100
-}
-```
-
-#### GET `/api/vault/deposits`
-Get vault deposits (requires authentication).
-
-### Transaction History
-
-#### GET `/api/transactions`
-Get transaction history (requires authentication).
-
-**Query Parameters:**
-- `limit`: Number of transactions (default: 10)
-- `offset`: Offset for pagination (default: 0)
+#### Contact endpoints for managing user contacts and wallet addresses
 
 ### System Status
 
 #### GET `/api/health`
 Health check endpoint.
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "network": "Sepolia Testnet",
-  "database": "connected",
-  "blockchain": "connected"
-}
-```
-
 ## Database Schema
+
+The server uses **Supabase** as the database with the following schema:
 
 ### Users Table
 ```sql
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  whatsapp_number TEXT UNIQUE NOT NULL,
+CREATE TABLE IF NOT EXISTS users (
+  whatsapp_number TEXT PRIMARY KEY,
   username TEXT,
-  email TEXT,
-  password_hash TEXT,
-  wallet_address TEXT,
-  private_key_encrypted TEXT,
-  risk_profile TEXT DEFAULT 'moderate',
-  auth_profile TEXT DEFAULT 'basic',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  encrypted_pin TEXT NOT NULL,
+  last_activity TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
-### Wallets Table
+### Contacts Table
 ```sql
-CREATE TABLE wallets (
+CREATE TABLE IF NOT EXISTS contacts (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  wallet_address TEXT UNIQUE NOT NULL,
-  private_key_encrypted TEXT,
-  balance_usdc REAL DEFAULT 0,
-  balance_eth REAL DEFAULT 0,
-  vault_balance REAL DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users (id)
-);
-```
-
-### Transactions Table
-```sql
-CREATE TABLE transactions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  tx_hash TEXT,
-  type TEXT NOT NULL,
-  amount REAL NOT NULL,
-  recipient TEXT,
-  status TEXT DEFAULT 'pending',
-  gas_used INTEGER,
-  gas_price TEXT,
-  block_number INTEGER,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users (id)
-);
-```
-
-### Vault Deposits Table
-```sql
-CREATE TABLE vault_deposits (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  amount REAL NOT NULL,
-  apy REAL DEFAULT 0.05,
-  status TEXT DEFAULT 'active',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users (id)
+  user_whatsapp_number TEXT NOT NULL,
+  name TEXT NOT NULL,
+  contact_whatsapp_number TEXT NOT NULL,
+  contact_wallet_address TEXT,
+  FOREIGN KEY (user_whatsapp_number) REFERENCES users (whatsapp_number) ON DELETE CASCADE
 );
 ```
 
 ## Blockchain Configuration
 
 ### Supported Networks
-- **Sepolia Testnet** (default)
-- **Polygon Mainnet**
+- **Base Sepolia** (recommended for testing)
+- **Base Mainnet** (for production deployment)
 
-### USDC Contract
-The server supports USDC token operations on EVM-compatible networks. Configure the contract address in your environment variables.
+### Smart Contract Integration
+The server integrates with deployed vault contracts for:
+- User registration on-chain
+- Asset management (USDC deposits/withdrawals)
+- Authorization profile management
+- Yield generation
 
 ### Gas Management
-The server automatically estimates gas costs for transactions and handles gas price optimization.
+The server uses a relayer pattern for gasless user transactions.
 
 ## Security Considerations
 
 ### Production Deployment
 1. **Use strong JWT secrets**
-2. **Implement proper encryption for private keys**
-3. **Add rate limiting and DDoS protection**
+2. **Secure Supabase configuration**
+3. **Implement proper encryption for private keys**
 4. **Use HTTPS in production**
 5. **Implement proper logging and monitoring**
 6. **Regular security audits**
 
 ### Private Key Management
-- Private keys are encrypted before storage
+- Relayer private keys are used for on-chain operations
 - Use hardware security modules (HSM) in production
 - Implement key rotation policies
 - Regular backup and recovery procedures
-
-## Development
-
-### Project Structure
-```
-server/
-├── server.js              # Main server file
-├── package.json           # Dependencies
-├── env.example           # Environment template
-├── database.sqlite       # SQLite database
-└── README.md            # This file
-```
-
-### Key Dependencies
-- `express` - Web framework
-- `ethers` - Ethereum library
-- `sqlite3` - Database
-- `bcryptjs` - Password hashing
-- `jsonwebtoken` - JWT authentication
-- `helmet` - Security headers
-- `express-rate-limit` - Rate limiting
-
-### Testing
-```bash
-# Run tests (when implemented)
-npm test
-
-# Health check
-curl http://localhost:3002/api/health
-```
 
 ## Integration with WhatsApp Bot
 
 The server integrates with the WhatsApp bot through HTTP API calls. The bot can:
 
-1. Register users automatically
-2. Query wallet balances
-3. Execute transactions
-4. Manage vault deposits
-5. Handle user authentication
+1. Register users on blockchain
+2. Query user balances and data
+3. Execute transfers with authorization
+4. Manage vault deposits/withdrawals
+5. Handle session management
 
 ### Environment Variables for Integration
 ```env
