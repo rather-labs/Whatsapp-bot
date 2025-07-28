@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 
 const getBackendUrl = () => {
-  return process.env.BACKEND_URL || '';
+  return process.env.NEXT_PUBLIC_BACKEND_URL;
 };
 
 async function getAuthToken(): Promise<string> {
@@ -84,6 +84,7 @@ export async function getValidToken(): Promise<string> {
 
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getValidToken();
+  
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',

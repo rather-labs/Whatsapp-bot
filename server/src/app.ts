@@ -1,10 +1,6 @@
 /**
  * WhatsApp Bot Backend Server
  * 
- * TIMESTAMP POLICY: All timestamps are stored in UTC/ISO 8601 format
- * - Database columns use TEXT type with UTC datetime defaults
- * - All timestamp operations use new Date().toISOString()
- * - This ensures consistent timezone handling across all environments
  */
 
 import express, { type Request, type Response, type NextFunction } from 'express';
@@ -15,7 +11,7 @@ import dotenv from 'dotenv';
 
 // Import middleware
 import { limiter } from './middleware/security';
-import { authenticateAndValidateOrigin } from './middleware/auth';
+import { authenticateToken } from './middleware/auth';
 
 // Import routes
 import healthRoutes from './routes/health';
@@ -36,11 +32,38 @@ const PORT = process.env.BACKEND_PORT || 3002;
 // Security middleware
 app.use(helmet());
 app.use(compression());
+
+// CORS configuration for development and production
+const allowedOrigins = [
+  `${process.env.FRONTEND_URL}/`,
+  `${process.env.WHATSAPP_BOT_URL}/`,
+].filter(Boolean);
+
 app.use(cors({
-  origin: [process.env.FRONTEND_URL, process.env.WHATSAPP_BOT_URL],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+    
+    // Check exact matches for string origins
+    if (allowedOrigins.some(allowed => 
+      typeof allowed === 'string' && (origin === allowed || origin.startsWith(allowed))
+    )) {
+      return callback(null, true);
+    }
+    
+    // Development mode - allow localhost with any port
+    if (process.env.NODE_ENV !== 'production' && 
+        (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      return callback(null, true);
+    }
+    
+    console.log('CORS blocked origin:', origin);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin'],
+  optionsSuccessStatus: 200
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -52,10 +75,10 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 
 // Protected routes (require JWT authentication and origin validation)
-app.use('/api/users', authenticateAndValidateOrigin, userRoutes);
-app.use('/api/ramps', authenticateAndValidateOrigin, rampRoutes);
-app.use('/api/transfers', authenticateAndValidateOrigin, transferRoutes);
-app.use('/api/contacts', authenticateAndValidateOrigin, contactRoutes);
+app.use('/api/users', authenticateToken, userRoutes);
+app.use('/api/ramps', authenticateToken, rampRoutes);
+app.use('/api/transfers', authenticateToken, transferRoutes);
+app.use('/api/contacts', authenticateToken, contactRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
@@ -75,7 +98,9 @@ if (require.main === module) {
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
     console.log('🔐 Authentication required for protected routes');
     console.log(`🌐 Network: ${networkConfig?.name || 'unknown'}`);
-    console.log("💾 Database: SQLite");
+    console.log("💾 Database: Supabase");
+    console.log('🔄 CORS allowed origins:', allowedOrigins);
+    console.log('📍 Environment:', process.env.NODE_ENV || 'development');
   });
 }
 

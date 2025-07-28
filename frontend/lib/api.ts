@@ -2,7 +2,7 @@
 
 import { makeAuthenticatedRequest } from './auth';
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL;
+const backendUrl =  process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // Server action for GET requests
 export async function apiGet(endpoint: string): Promise<unknown> {

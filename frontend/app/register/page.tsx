@@ -10,11 +10,12 @@ import { apiGet, apiPost } from '../../lib/api';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { success, setCalls, receipts, calls, setDisabled } = useTransaction();
+  const { success, setCalls, setDisabled } = useTransaction();
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [pin, setPin] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Get parameters from URL
   useEffect(() => {
@@ -66,9 +67,9 @@ export default function Home() {
 
   const handleSubmit = async () => {
     if (isConnected && address && whatsappNumber && pin && success ) {
-     
+      setIsSubmitting(true);
       try {
-        const data = await apiPost('/api/users/register', {
+        await apiPost('/api/users/register', {
           whatsapp_number: whatsappNumber,
           username: username,
           pin: pin,
@@ -76,7 +77,9 @@ export default function Home() {
         });
         
         setIsSubmitted(true);
+        setIsSubmitting(false);
       } catch (err) {
+        setIsSubmitting(false);
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         if (errorMessage.includes("User already exists")) {
           setIsSubmitted(true);
@@ -159,10 +162,10 @@ export default function Home() {
                 </div>
               <button
                 type="button"
-                disabled={!pin || pin.length < 4 || pin.length > 6 || !success }
+                disabled={!pin || pin.length < 4 || pin.length > 6 || !success || isSubmitting }
                 onClick={() => handleSubmit()}
                 className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
-                  !pin || pin.length < 4 || pin.length > 6 || !success
+                  !pin || pin.length < 4 || pin.length > 6 || !success || isSubmitting
                     ? "bg-gray-200 text-[#A0A0A0] cursor-not-allowed"
                     : "bg-[#0052FF] text-white cursor-pointer"
                 }`}
