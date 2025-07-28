@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 
 const getBackendUrl = () => {
-  return process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || '';
+  return process.env.BACKEND_URL || '';
 };
 
 async function getAuthToken(): Promise<string> {
