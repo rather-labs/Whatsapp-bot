@@ -110,12 +110,12 @@ This project consists of three main components:
 
 ```
 whatsapp-base-bot-smart-wallet/
-├── backend-bot/                 # WhatsApp Web client
+├── backend-bot/                # WhatsApp Web client
 │   ├── services/               # Connection and backend services
 │   ├── handlers/               # Message processing
 │   ├── routes/                 # API endpoints
 │   ├── public/                 # Static files (QR code display)
-│   └── server.js              # Main bot server
+│   └── server.js               # Main bot server
 ├── server/                     # Backend API
 │   ├── src/
 │   │   ├── config/            # Database and blockchain config
@@ -123,13 +123,15 @@ whatsapp-base-bot-smart-wallet/
 │   │   ├── routes/            # API route handlers
 │   │   ├── services/          # Business logic
 │   │   └── utils/             # Utility functions
+│   │   └── lib/               # Authentication management
 │   └── server.ts              # Main API server
-├── frontend/                   # Next.js web application
+├── frontend/                  # Next.js web application
 │   ├── app/
 │   │   ├── actions/           # Wallet operation pages
 │   │   ├── components/        # React components
 │   │   ├── context/           # React context providers
 │   │   └── utils/             # Frontend utilities
+│   │   └── lib/               # Authentication management
 │   └── next.config.ts         # Next.js configuration
 └── README.md                  # This file
 ```
@@ -151,27 +153,34 @@ whatsapp-base-bot-smart-wallet/
 
 ## 🛠️ API Endpoints
 
-### Authentication
+### Public Endpoints
+- `GET /api/health` - Health check
+- `POST /api/auth/token/backend-bot` - Get JWT token for backend-bot
+- `POST /api/auth/token/frontend` - Get JWT token for frontend
+
+### Protected endpoints
+#### Authentication
 - `POST /api/users/register` - Register new user
 - `POST /api/users/login` - User login
 - `GET /api/users/check/:whatsapp_number` - Check user status
 
-### Wallet Operations
+#### Wallet Operations
 - `GET /api/wallet/balance/:userId` - Get wallet balance
 - `POST /api/vault/deposit` - Deposit funds
 - `POST /api/vault/withdraw` - Withdraw funds
 - `GET /api/vault/deposits/:userId` - Get deposit history
 
-### Transfers & Transactions
+#### Transfers & Transactions
 - `POST /api/transfers/send` - Send transfer
 - `GET /api/transactions/history/:userId` - Transaction history
-- `GET /api/health` - System health check
 
 
 ## 🔒 Security Features
 
 - **PIN Encryption** - Secure user PIN storage
 - **CORS Configuration** - Cross-origin security
+- **JWT Authentication Service** on server
+- **Origin Validation Middleware** for request security
 
 ## 🌐 Deployment
 
@@ -195,13 +204,6 @@ cd frontend && npm run vercel:deploy
 # Server deployment
 cd server && npm run vercel:deploy
 ```
-
-## 📚 Documentation
-
-- [Backend Bot Architecture](backend-bot/ARCHITECTURE.md)
-- [Server Architecture](server/ARCHITECTURE.md)
-- [Blockchain Setup Guide](server/BLOCKCHAIN_SETUP.md)
-- [Chain Configuration](server/CHAIN_CONFIGURATION.md)
 
 ## 🤝 Contributing
 

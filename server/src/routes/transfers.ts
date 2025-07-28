@@ -1,5 +1,4 @@
 import express, { type Response, type Request } from 'express';
-import { authenticateToken, type AuthenticatedRequest } from '../middleware/auth';
 import ContractService from '../services/contractService';
 import { isValidAddress, isValidNumber } from '../utils/vault';
 import { getContactWhatsappNumber, getContactWalletAddress } from '../config/database';

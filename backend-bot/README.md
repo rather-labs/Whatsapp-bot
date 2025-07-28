@@ -12,6 +12,7 @@ A WhatsApp bot built with Node.js and whatsapp-web.js that includes wallet funct
 - Real-time QR code authentication and status monitoring
 - Contact management and vCard parsing
 - Session management with PIN authentication
+- JWT-secured server communication
 - Modular architecture with separation of concerns
 
 ### 💰 User Commands

@@ -15,9 +15,11 @@ import dotenv from 'dotenv';
 
 // Import middleware
 import { limiter } from './middleware/security';
+import { authenticateAndValidateOrigin } from './middleware/auth';
 
 // Import routes
 import healthRoutes from './routes/health';
+import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import rampRoutes from './routes/ramps';
 import transferRoutes from './routes/transfers';
@@ -40,12 +42,15 @@ app.use(express.json({ limit: '10mb' }));
 // Rate limiting
 app.use('/api/', limiter);
 
-// API Routes
-app.use('/api', healthRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/ramps', rampRoutes);
-app.use('/api/transfers', transferRoutes);
-app.use('/api/contacts', contactRoutes);
+// Public routes (no authentication required)
+app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
+
+// Protected routes (require JWT authentication and origin validation)
+app.use('/api/users', authenticateAndValidateOrigin, userRoutes);
+app.use('/api/ramps', authenticateAndValidateOrigin, rampRoutes);
+app.use('/api/transfers', authenticateAndValidateOrigin, transferRoutes);
+app.use('/api/contacts', authenticateAndValidateOrigin, contactRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
@@ -63,6 +68,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+    console.log('🔐 Authentication required for protected routes');
     console.log(`🌐 Network: ${networkConfig?.name || 'unknown'}`);
     console.log("💾 Database: SQLite");
   });

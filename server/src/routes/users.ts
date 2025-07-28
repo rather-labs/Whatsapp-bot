@@ -1,13 +1,8 @@
 import express from 'express';
 import type { Response, Request } from 'express';
-import jwt from 'jsonwebtoken';
 import supabase from '../config/database';
-import { authenticateToken } from '../middleware/auth';
-import type { AuthenticatedRequest } from '../middleware/auth';
 import ContractService from '../services/contractService';
 import { getUserSessionStatus, updateUserActivity, validateUserPin, registerUser } from '../services/sessionService';
-import { encryptUserPin } from '../utils/crypto';
-import e from 'express';
 import { authProfiles, riskProfiles } from '../utils/vault';
 
 

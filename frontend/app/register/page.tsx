@@ -6,11 +6,11 @@ import { useAccount } from 'wagmi';
 import { erc20Abi, maxUint256 } from 'viem';
 import { useTransaction } from '../context/TransactionContext';
 import SignTransaction from '../components/SignTransaction';
-import axios from 'axios';
+import { ApiClient } from '../../lib/api';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { success, setCalls, receipts, calls } = useTransaction();
+  const { success, setCalls, receipts, calls, setDisabled } = useTransaction();
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [pin, setPin] = useState<string | null>(null);
@@ -47,52 +47,49 @@ export default function Home() {
   }, [tokenAddress, vaultAddress, setCalls]);
 
   useEffect(() => {
-    console.log('receipts', receipts);
-  }, [receipts]);
-
-
-  useEffect(() => {
     async function checkRegistration() {
       if (whatsappNumber) {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check/${whatsappNumber}`);
-        const data = response.data;
-        setIsSubmitted(data.registered);
+        try {
+          const data = await ApiClient.get(`/api/users/check/${whatsappNumber}`) as { registered: boolean };
+          setIsSubmitted(data.registered);
+        } catch (error) {
+          alert(`Failed to check registration: ${error}`);
+        }
       }
     }
     checkRegistration();
   }, [whatsappNumber]);
 
+  useEffect(() => {
+    setDisabled(isConnected);
+  }, [isConnected, setDisabled]);
+
   const handleSubmit = async () => {
     if (isConnected && address && whatsappNumber && pin && success ) {
      
       try {
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`, {
+        const data = await ApiClient.post('/api/users/register', {
           whatsapp_number: whatsappNumber,
           username: username,
           pin: pin,
           wallet_address: address,
         });
         
-        if (response.status === 200) {
+        setIsSubmitted(true);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        if (errorMessage.includes("User already exists")) {
           setIsSubmitted(true);
         } else {
-          const errorData = response.data;
-          if (errorData.error === "User already exists") {
-            setIsSubmitted(true);
-          } else {
-            alert(`Registration failed: ${errorData.error || 'Unknown error'}`);
-          }
+          alert(`Registration failed: ${errorMessage}`);
         }
-      } catch (err) {
-        console.log(err);
-        alert(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     } else {
       alert("Please ensure you are connected to your wallet, have entered a valid PIN, and have signed the approval transaction. If you have already signed the transaction, please wait for it to be confirmed.");
     }
   };
 
-  return (
+    return (
     <main>
       <div className="flex flex-col items-center justify-center mt-8">
         <div className="w-full flex justify-center">
@@ -160,18 +157,18 @@ export default function Home() {
                 <div className="bg-white rounded-2xl p-6 shadow-md max-w-md w-full mt-4">
                   <SignTransaction />
                 </div>
-                <button
-                  type="button"
-                  disabled={!pin || pin.length < 4 || pin.length > 6 || !success }
-                  onClick={() => handleSubmit()}
-                  className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
-                    !pin || pin.length < 4 || pin.length > 6 || !success
-                      ? "bg-gray-200 text-[#A0A0A0] cursor-not-allowed"
-                      : "bg-[#0052FF] text-white cursor-pointer"
-                  }`}
-                >
-                  Submit Registration
-                </button>
+              <button
+                type="button"
+                disabled={!pin || pin.length < 4 || pin.length > 6 || !success }
+                onClick={() => handleSubmit()}
+                className={`w-full py-3 rounded-lg font-bold text-[1.05em] transition-colors ${
+                  !pin || pin.length < 4 || pin.length > 6 || !success
+                    ? "bg-gray-200 text-[#A0A0A0] cursor-not-allowed"
+                    : "bg-[#0052FF] text-white cursor-pointer"
+                }`}
+              >
+                Submit Registration
+              </button>
               </div>
             </div>
           </>

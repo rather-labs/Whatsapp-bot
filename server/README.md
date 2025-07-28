@@ -35,6 +35,8 @@ A comprehensive backend server that provides user management, wallet functionali
 - **Centralized PIN validation** for session restoration
 - **Session expiration handling** with automatic cleanup
 - Authorization profiles for transaction approval
+- **JWT authentication middleware** for all protected routes
+- **Origin validation** for request source verification
 
 ## Installation
 
