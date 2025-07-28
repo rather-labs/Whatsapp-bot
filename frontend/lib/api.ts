@@ -1,58 +1,59 @@
-import AuthService from './auth';
+'use server';
 
-const authService = AuthService.getInstance();
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { makeAuthenticatedRequest } from './auth';
 
-export const ApiClient = {
-  async get(endpoint: string): Promise<unknown> {
-    const response = await authService.makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
-      method: 'GET',
-    });
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL;
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
+// Server action for GET requests
+export async function apiGet(endpoint: string): Promise<unknown> {
+  const response = await makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
+    method: 'GET',
+  });
 
-    return response.json();
-  },
-
-  async post(endpoint: string, data: unknown): Promise<unknown> {
-    const response = await authService.makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    return response.json();
-  },
-
-  async put(endpoint: string, data: unknown): Promise<unknown> {
-    const response = await authService.makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    return response.json();
-  },
-
-  async delete(endpoint: string): Promise<unknown> {
-    const response = await authService.makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    return response.json();
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
   }
-};
 
-export default ApiClient; 
+  return response.json();
+}
+
+// Server action for POST requests
+export async function apiPost(endpoint: string, data: unknown): Promise<unknown> {
+  const response = await makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Server action for PUT requests
+export async function apiPut(endpoint: string, data: unknown): Promise<unknown> {
+  const response = await makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Server action for DELETE requests
+export async function apiDelete(endpoint: string): Promise<unknown> {
+  const response = await makeAuthenticatedRequest(`${backendUrl}${endpoint}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
+  }
+
+  return response.json();
+} 

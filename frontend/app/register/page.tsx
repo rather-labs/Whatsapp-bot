@@ -6,7 +6,7 @@ import { useAccount } from 'wagmi';
 import { erc20Abi, maxUint256 } from 'viem';
 import { useTransaction } from '../context/TransactionContext';
 import SignTransaction from '../components/SignTransaction';
-import { ApiClient } from '../../lib/api';
+import { apiGet, apiPost } from '../../lib/api';
 
 export default function Home() {
   const { address, isConnected } = useAccount();
@@ -50,7 +50,7 @@ export default function Home() {
     async function checkRegistration() {
       if (whatsappNumber) {
         try {
-          const data = await ApiClient.get(`/api/users/check/${whatsappNumber}`) as { registered: boolean };
+          const data = await apiGet(`/api/users/check/${whatsappNumber}`) as { registered: boolean };
           setIsSubmitted(data.registered);
         } catch (error) {
           alert(`Failed to check registration: ${error}`);
@@ -68,7 +68,7 @@ export default function Home() {
     if (isConnected && address && whatsappNumber && pin && success ) {
      
       try {
-        const data = await ApiClient.post('/api/users/register', {
+        const data = await apiPost('/api/users/register', {
           whatsapp_number: whatsappNumber,
           username: username,
           pin: pin,

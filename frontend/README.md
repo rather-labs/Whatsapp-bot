@@ -1,339 +1,252 @@
-# WhatsApp Bot with Smart Wallet & Blockchain Integration
+# Smart Wallet Frontend
 
-A comprehensive WhatsApp bot system with blockchain integration, featuring user management, USDC payments, vault deposits, and EVM blockchain transactions.
+A Next.js web application providing user registration and transaction authorization interfaces for the WhatsApp Bot Smart Wallet system. Built with React, TypeScript, and Coinbase's OnChainKit for blockchain integration.
 
 **Note: This is a Proof of Concept implementation. Some features like on-ramp and off-ramp services are currently disabled.**
-
-## 🏗️ Architecture
-
-The system consists of three main components:
-
-1. **Backend Bot** (`backend-bot/`) - WhatsApp Web client that handles message processing and user interactions. For development, to be replaced by WhatsApp services.
-2. **Server** (`server/`) - REST API backend for user management, blockchain operations, and database management
-3. **Frontend** (`frontend/`) - Next.js web application providing a user interface for user registration and authorized operations, according to user preferences
-
-```
-┌─────────────────┐    HTTP API    ┌──────────────────┐
-│   WhatsApp Bot  │◄──────────────►│ Server           │
-│   (Port 3001)   │                │   (Port 3002)    │
-└─────────────────┘                └──────────────────┘
-         │                                   │
-         │                                   │
-    WhatsApp Web                    ┌────────┴────────┐
-         │                          │                 │
-    User Messages                   │   Supabase DB   │
-                                    │  EVM Blockchain │
-                                    └─────────────────┘
-```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
-- A smartphone with WhatsApp installed
-- Supabase database configured
+- Running backend server (see `../server/` for setup)
 
-### 1. Start the Server
+### Installation
 
 ```bash
-cd server
-
 # Install dependencies
 npm install
 
-# Set up environment
-cp env.example .env
-# Edit .env with your configuration
+# Set up environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your configuration
 
-# Start the server
-npm start
-```
-
-### 2. Start the WhatsApp Bot
-
-```bash
-cd backend-bot
-
-# Install dependencies
-npm install
-
-# Start the bot
-npm start
-```
-
-### 3. Start the Frontend
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start the frontend
+# Start the development server
 npm run dev
 ```
 
-### 4. Connect WhatsApp
+The application will be available at `http://localhost:3000`.
 
-1. Open your browser and go to `http://localhost:3001`
-2. Scan the QR code with your WhatsApp mobile app (for QR code WhatsApp login)
-3. Wait for the "Connected & Ready" status
-
-## 📱 Bot Commands
-
-### Basic Commands
-- `hello` / `hi` / `hey` - Greet the bot
-- `/help` - Show all available commands
-- `/status` - Check bot connection status
-- `/info` - Get bot information
-- `/session` - Check your session status
-
-### User Registration & Authentication
-- `/register` - Register a new user account (requires PIN via frontend)
-- **Session Management**: Automatic PIN prompting when session expires (5-minute inactivity)
-
-### Wallet Commands
-- `/balance` - Check your USDC balance (vault + wallet)
-- `/pay <amount> <recipient>` - Send USDC to another user or external wallet
-- `/deposit <amount>` - Deposit USDC to vault for yield
-- `/withdraw <amount>` - Withdraw USDC from vault
-
-### Profile Commands
-- `/riskprofile` - View/change risk profile
-- `/authprofile` - Check authentication level
-
-### Ramp Commands
-- `/buy` - On-ramp services (currently disabled - PoC)
-- `/sell` - Off-ramp services (currently disabled - PoC)
-
-### Contact Commands
-- Share contacts - Bot automatically parses vCard information
-
-## 🌐 Frontend Features
-
-The frontend provides web-based interfaces for:
+## 🌐 Features
 
 ### User Registration
-- `/register` - Complete user registration with PIN setup
+- **Route**: `/register`
+- Complete user registration with PIN setup
 - Blockchain integration for on-chain user registration
+- WhatsApp number validation and verification
 
-### Authorized Operations
-- `/actions/transfer` - Authorize USDC transfers
-- `/actions/deposit` - Authorize vault deposits
-- `/actions/withdraw` - Authorize vault withdrawals
-- `/actions/changeAuth` - Modify authentication profile
-- `/actions/changeRisk` - Modify risk profile
-- `/actions/changeAuthThres` - Set authorization thresholds
+### Authorization Pages
+The frontend provides secure authorization interfaces for various wallet operations:
+
+- **`/actions/transfer`** - Authorize USDC transfers to other users or external wallets
+- **`/actions/deposit`** - Authorize vault deposits for yield generation
+- **`/actions/withdraw`** - Authorize vault withdrawals
+- **`/actions/changeAuth`** - Modify user authentication profile settings
+- **`/actions/changeRisk`** - Update user risk profile preferences
+- **`/actions/changeAuthThres`** - Set authorization thresholds for transactions
 
 ### Ramp Services (Currently Disabled)
-- `/actions/onramp` - On-ramp interface (shows "unavailable" message)
-- `/actions/offramp` - Off-ramp interface (shows "unavailable" message)
+- **`/actions/onramp`** - On-ramp interface (shows "unavailable" message)
+- **`/actions/offramp`** - Off-ramp interface (shows "unavailable" message)
 
 ## 🔧 Configuration
 
-### Server Environment Variables
+### Environment Variables
 
-Create a `.env` file in the `server/` directory:
-
-```env
-# Server Configuration
-BACKEND_PORT=3002
-JWT_SECRET=your-super-secret
-
-# Blockchain Network
-NETWORK=baseSepolia
-BASE_SEPOLIA_RPC=https://sepolia.base.org
-BASE_MAINNET_RPC=https://mainnet.base.org
-
-# Smart Contracts
-USDC_CONTRACT_ADDRESS=0x...
-VAULT_CONTRACT_ADDRESS=0x...
-
-# Database
-SUPABASE_URL=your-supabase-url
-SUPABASE_SERVICE_ROLE_KEY=your-service-key
-
-# Frontend Integration
-FRONTEND_URL=http://localhost:3000
-```
-
-### WhatsApp Bot Environment Variables
-
-Create a `.env` file in the `backend-bot/` directory:
+Create a `.env.local` file in the project root:
 
 ```env
-PORT=3001
-BACKEND_SERVER_URL=http://localhost:3002
-```
-
-### Frontend Environment Variables
-
-Create a `.env.local` file in the `frontend/` directory:
-
-```env
+# Backend API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:3002
+
+# Blockchain Configuration (optional - for direct blockchain calls)
+NEXT_PUBLIC_NETWORK=baseSepolia
+NEXT_PUBLIC_BASE_SEPOLIA_RPC=https://sepolia.base.org
+NEXT_PUBLIC_BASE_MAINNET_RPC=https://mainnet.base.org
+
+# Smart Contract Addresses (if needed for frontend operations)
+NEXT_PUBLIC_USDC_CONTRACT_ADDRESS=0x...
+NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS=0x...
 ```
 
-## 🌐 API Endpoints
+## 🏗️ Architecture
 
-### Server (Port 3002)
+The frontend communicates with the backend server via REST API calls:
 
-#### User Management
-- `GET /api/users/check/:whatsapp_number` - Check blockchain registration
+```
+┌─────────────────┐    HTTP API    ┌──────────────────┐
+│   Frontend      │◄──────────────►│ Backend Server   │
+│   (Port 3000)   │                │   (Port 3002)    │
+└─────────────────┘                └──────────────────┘
+         │                                   │
+         │                                   │
+    User Interface                  ┌────────┴────────┐
+         │                          │                 │
+    Wallet Connect                  │   Supabase DB   │
+                                    │  EVM Blockchain │
+                                    └─────────────────┘
+```
+
+## 🛠️ Project Structure
+
+```
+frontend/
+├── app/
+│   ├── actions/              # Authorization pages
+│   │   ├── transfer/         # USDC transfer authorization
+│   │   ├── deposit/          # Vault deposit authorization
+│   │   ├── withdraw/         # Vault withdrawal authorization
+│   │   ├── changeAuth/       # Auth profile modification
+│   │   ├── changeRisk/       # Risk profile modification
+│   │   ├── changeAuthThres/  # Auth threshold settings
+│   │   ├── onramp/           # On-ramp interface (disabled)
+│   │   └── offramp/          # Off-ramp interface (disabled)
+│   ├── components/           # Reusable React components
+│   │   ├── Header.tsx        # Application header
+│   │   ├── Footer.tsx        # Application footer
+│   │   ├── SignTransaction.tsx # Transaction signing component
+│   │   └── OnChainKitButton.tsx # Coinbase OnChainKit integration
+│   ├── context/              # React context providers
+│   ├── register/             # User registration page
+│   ├── utils/                # Utility functions and types
+│   ├── layout.tsx            # Root layout component
+│   ├── page.tsx              # Home page
+│   ├── providers.tsx         # App-wide providers
+│   └── globals.css           # Global styles
+├── lib/
+│   ├── api.ts               # Backend API integration
+│   └── auth.ts              # Authentication utilities
+├── public/                  # Static assets
+├── next.config.ts          # Next.js configuration
+├── tailwind.config.ts      # Tailwind CSS configuration
+├── wagmi.ts               # Wagmi configuration for wallet integration
+└── package.json           # Dependencies and scripts
+```
+
+## 🔐 API Integration
+
+The frontend communicates with the backend server through the following key endpoints:
+
+### User Management
+- `GET /api/users/check/:whatsapp_number` - Check user registration status
 - `GET /api/users/data/:whatsapp_number` - Get user data and balances
-- `POST /api/users/register` - Register new user with blockchain integration
+- `POST /api/users/register` - Register new user
 
-#### Session Management
-- `POST /api/users/session/validate` - Comprehensive session validation with PIN handling
-- `GET /api/users/session/status/:whatsapp_number` - Get detailed session status
+### Session Management
+- `POST /api/users/session/validate` - Validate user session with PIN
+- `GET /api/users/session/status/:whatsapp_number` - Get session status
 
-#### Transfer Operations
-- `POST /api/transfers/pay` - Send USDC payment
-- `POST /api/transfers/deposit` - Deposit to vault
-- `POST /api/transfers/withdraw` - Withdraw from vault
+### Transaction Authorization
+- `POST /api/transfers/pay` - Authorize USDC payment
+- `POST /api/transfers/deposit` - Authorize vault deposit
+- `POST /api/transfers/withdraw` - Authorize vault withdrawal
 
-#### Ramp Operations
-- `POST /api/ramps/onramp` - Generate on-ramp URLs (PoC - limited functionality)
-- `POST /api/ramps/offramp` - Generate off-ramp URLs (PoC - limited functionality)
-
-#### System
-- `GET /api/health` - Health check
-- Contact management endpoints
-
-### WhatsApp Bot (Port 3001)
-
-#### Bot Control
-- `GET /api/status` - Bot status
-- `GET /api/health` - Health check
-- `POST /api/send-message` - Send message programmatically
+### Profile Management
+- `POST /api/users/profile/auth` - Update authentication profile
+- `POST /api/users/profile/risk` - Update risk profile
 
 ## 🔒 Security Features
 
-### Server
-- Session management with 5-minute inactivity timeout
-- PIN-based authentication for session restoration
-- Encrypted PIN storage in Supabase
-- Authorization profiles for transaction approval
+- **Session Validation**: Secure PIN-based authentication for user sessions
+- **Transaction Authorization**: Multi-level approval system based on user preferences
+- **Wallet Integration**: Secure connection with user wallets via Coinbase OnChainKit
+- **Input Validation**: Client-side and server-side validation for all user inputs
+- **HTTPS Enforcement**: Secure communication with backend services
 
-### WhatsApp Bot
-- Secure WhatsApp Web integration
-- Simplified session management (delegates to server)
-- PIN prompting only when session expires
-- Message validation and contact management
+## 🎨 UI/UX Features
 
-## 🔐 Session Management
+- **Responsive Design**: Mobile-first responsive layout using Tailwind CSS
+- **Modern UI**: Clean, intuitive interface optimized for mobile devices
+- **Loading States**: Proper loading indicators during API calls and blockchain transactions
+- **Error Handling**: User-friendly error messages and fallback states
+- **Accessibility**: WCAG-compliant components and navigation
 
-The system features **centralized session management** with intelligent PIN handling:
+## 🧪 Development
 
-### Architecture
-- **Server-Centric**: All session logic is centralized in the server component
-- **Backend-Bot Simplified**: Only handles PIN prompting locally, delegates all session logic to server
-- **Database-Driven**: Session state stored securely in Supabase with `last_activity` tracking
+### Available Scripts
 
-### Authorization Levels
-- **High**: Requires frontend authorization for all transactions
-- **Medium**: Requires frontend authorization for most transactions
-- **Low**: Minimal authorization requirements
-
-## 🏦 Vault System
-
-The vault system allows users to:
-- Deposit USDC for yield generation via smart contracts
-- Withdraw funds at any time
-- Track balances through on-chain queries
-- Manage authorization levels for operations
-
-## 🌐 Blockchain Integration
-
-### Supported Networks
-- **Base Sepolia** (recommended for testing)
-- **Base Mainnet** (for production deployment)
-
-### Features
-- Smart contract-based user registration
-- USDC vault deposits and withdrawals
-- On-chain asset management
-- Gasless transactions via relayer pattern
-
-## 📊 Monitoring
-
-### Health Checks
-- Server: `http://localhost:3002/api/health`
-- WhatsApp bot: `http://localhost:3001/api/health`
-- Frontend: `http://localhost:3000`
-
-## 🚀 Production Deployment
-
-### Security Checklist
-1. Use strong JWT secrets
-2. Secure Supabase configuration
-3. Implement proper encryption for private keys
-4. Use HTTPS in production
-5. Implement proper logging and monitoring
-6. Regular security audits
-
-### Environment Setup
-1. Configure production Supabase instance
-2. Deploy smart contracts to mainnet
-3. Set up proper relayer configuration
-4. Configure production RPC endpoints
-
-## 🛠️ Development
-
-### Project Structure
-```
-whatsapp-base-bot-smart-wallet/
-├── backend-bot/           # WhatsApp bot server
-│   ├── server.js         # Main bot server
-│   ├── handlers/
-│   │   └── MessageHandler.js  # Message processing
-│   ├── services/
-│   │   ├── BackendService.js  # Backend API integration
-│   │   └── SessionManager.js  # PIN prompting
-│   └── package.json      # Bot dependencies
-├── server/               # Backend API server
-│   ├── src/
-│   │   ├── config/       # Database and blockchain config
-│   │   ├── routes/       # API route handlers
-│   │   ├── services/     # Business logic
-│   │   └── utils/        # Utility functions
-│   └── package.json      # Server dependencies
-├── frontend/             # Next.js web application
-│   ├── app/
-│   │   ├── actions/      # Authorization pages
-│   │   ├── components/   # React components
-│   │   └── register/     # Registration page
-│   └── next.config.ts    # Next.js configuration
-└── README.md            # This file
-```
-
-### Running in Development
 ```bash
-# Terminal 1 - Server
-cd server
+# Development server with Turbopack
 npm run dev
 
-# Terminal 2 - WhatsApp Bot
-cd backend-bot
-npm run dev
+# Production build
+npm run build
 
-# Terminal 3 - Frontend
-cd frontend
-npm run dev
+# Start production server
+npm start
+
+# Lint code
+npm run lint
+
+# Deploy to Vercel
+npm run vercel:deploy
 ```
+
+### Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Blockchain**: Coinbase OnChainKit, Viem
+- **HTTP Client**: Axios
+- **Build Tool**: Turbopack (development)
+
+### Development Workflow
+
+1. **Start Backend**: Ensure the backend server is running on port 3002
+2. **Install Dependencies**: `npm install`
+3. **Environment Setup**: Configure `.env.local` with proper API URLs
+4. **Development Server**: `npm run dev`
+5. **Access Application**: Open `http://localhost:3000`
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+The project is configured for easy deployment to Vercel:
+
+```bash
+# Deploy to Vercel
+npm run vercel:deploy
+```
+
+### Manual Deployment
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+### Environment Configuration
+
+Ensure the following environment variables are set in your deployment:
+
+- `NEXT_PUBLIC_API_URL` - Backend server URL
+- Other blockchain and contract configuration as needed
 
 ## ⚠️ Current Limitations
 
 ### Proof of Concept Status
-- **On-ramp services**: Currently disabled and show warning messages
-- **Off-ramp services**: Currently disabled and show warning messages
-- **Limited testing**: Primarily configured for Base Sepolia testnet
+- **On-ramp services**: Currently disabled pending external service integration
+- **Off-ramp services**: Currently disabled pending compliance setup
+- **Limited testing**: Primarily tested on Base Sepolia testnet
 
-### Known Issues
-- On-ramp integration requires external service setup
-- Off-ramp integration requires compliance and KYC setup
-- Some advanced features may require additional configuration
+
+## 🔮 Future Enhancements
+
+- [ ] Complete on-ramp/off-ramp service integration
+- [ ] Enhanced mobile UI/UX optimizations
+- [ ] Multi-language support
+
+### Development Tips
+
+- Use browser developer tools to monitor API calls
+- Check the Network tab for failed requests
+- Review console logs for client-side errors
+- Ensure backend server logs for API debugging
 
 ## 📝 License
 
@@ -342,25 +255,9 @@ MIT License - see LICENSE file for details.
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the troubleshooting sections in individual README files
-2. Review server logs for error messages
-3. Ensure all dependencies are properly installed
-4. Verify environment configuration
-5. Create an issue on GitHub
-
-## 🔮 Future Enhancements
-
-- [ ] Migration to WhatsApp Business API
-- [ ] Complete on-ramp/off-ramp integration
-- [ ] Add security features to server and frontend
-- [ ] Multi-language support
-- [ ] Integration with more blockchain networks
-- [ ] Advanced trading features
+4. Test thoroughly
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
